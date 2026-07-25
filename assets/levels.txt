@@ -4,6 +4,9 @@
 # Pieces: spike cube tall triple cubespike skyspike badguy
 # Distances are how far down the road. Edit me by hand,
 # or use the LEVEL EDITOR in the game!
+#
+# A "boss" line makes that stage a boss fight instead
+# of a normal level: tomato, thorn, or bat!
 
 level 1 Bunny Meadow
 speed 8
@@ -69,7 +72,8 @@ spike 93.2
 skyspike 101
 spike 108
 
-level 4 The Big Red Boss
+level 4 Rotten Tomato
+boss tomato
 speed 8
 finish 0
 
@@ -180,6 +184,117 @@ cube 96.4
 cube 97.6
 spike 105
 
-level 7 The Cursed Thorn
+level 7 Spike Forest
+speed 9
+finish 106
+spike 18
+spike 26
+spike 27
+skyspike 34
+spike 41
+spike 42
+badguy 50
+spike 57
+skyspike 63
+spike 70
+spike 71
+spike 79
+skyspike 85
+spike 92
+spike 93
+
+level 8 The Cursed Thorn
+boss thorn
+speed 8
+finish 0
+
+level 9 Bounce Alley
+speed 9
+finish 112
+badguy 18
+cube 26
+cube 27
+cube 28
+badguy 36
+badguy 43
+cube 50
+cube 51
+cube 52
+cubespike 53
+badguy 61
+skyspike 68
+badguy 75
+cube 82
+cube 83
+cube 84
+cube 85
+badguy 93
+spike 100
+
+level 10 The Long Climb
+speed 10
+finish 110
+spike 18
+cube 26
+cube 27
+cube 28
+cube 29
+tall 30
+tall 31
+tall 32
+triple 33
+triple 34
+triple 35
+triple 36
+spike 46
+spike 47
+cube 54
+cube 55
+cube 56
+tall 57
+tall 58
+tall 59
+triple 60
+triple 61
+triple 62
+skyspike 72
+spike 79
+cube 86
+cube 87
+cube 88
+cube 89
+spike 96
+spike 97
+
+level 11 The Final Road
+speed 10
+finish 124
+badguy 18
+spike 25
+spike 26
+skyspike 33
+cube 40
+cube 41
+cube 42
+cubespike 43
+spike 51
+spike 52
+badguy 59
+skyspike 66
+cube 73
+cube 74
+tall 75
+tall 76
+triple 77
+triple 78
+spike 88
+spike 89
+skyspike 96
+badguy 103
+spike 110
+spike 111
+
+level 12 Bad Bat
+boss bat
 speed 8
 finish 0

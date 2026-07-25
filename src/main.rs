@@ -17,8 +17,9 @@
 //!     but if you smack into the SIDE... you die!
 //!   * If you die, the level starts over. Instantly.
 //!   * Reach the GOLDEN FINISH LINE to beat the level.
-//!   * Level 4 is the BIG RED BOSS, and level 7 is the
-//!     FINAL boss: THE CURSED THORN!
+//!   * NINE levels and THREE bosses: after every three
+//!     levels a boss appears! Rotten Tomato, then the
+//!     Cursed Thorn, then the FINAL boss... BAD BAT!
 //!
 //! THE MATH YOU WILL LEARN:
 //!   * ADDING     : position = position + speed
@@ -155,8 +156,9 @@ pub struct MainCamera;
 /// Which boss is this?
 #[derive(Clone, Copy, PartialEq)]
 enum BossKind {
-    BigRed,      // the first boss: a giant angry ball
-    CursedThorn, // the FINAL boss: a spiky rose in a pot!
+    RottenTomato, // boss 1: a giant moldy tomato — spits seeds!
+    CursedThorn,  // boss 2: a spiky rose in a pot — shoots thorns!
+    BadBat,       // the FINAL boss: fast, tricky... and LASERS!
 }
 
 /// A BOSS! It remembers its hearts and its throwing.
@@ -517,6 +519,137 @@ pub fn spawn_thorn_plant(
         .id()
 }
 
+/// Build the Rotten Tomato: a big moldy tomato with a
+/// stem and leaves on top. Gives back the tomato's id.
+pub fn spawn_tomato_visual(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    place: Transform,
+) -> Entity {
+    let tomato_red = materials.add(Color::srgb(0.75, 0.15, 0.1));
+    let mold_green = materials.add(Color::srgb(0.45, 0.5, 0.2));
+    let leaf_green = materials.add(Color::srgb(0.25, 0.6, 0.25));
+    let stem_brown = materials.add(Color::srgb(0.4, 0.3, 0.15));
+    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
+
+    commands
+        .spawn((place, Visibility::default()))
+        .with_children(|tomato| {
+            // The big squishy tomato body.
+            tomato.spawn((
+                Mesh3d(meshes.add(Sphere::new(1.4))),
+                MeshMaterial3d(tomato_red.clone()),
+                Transform::from_xyz(0.0, 0.0, 0.0),
+            ));
+            // Yucky mold spots! cos & sin walk them around
+            // the tomato's tummy — circle math again!
+            for i in 0..5 {
+                let angle = i as f32 * 6.28 / 5.0;
+                tomato.spawn((
+                    Mesh3d(meshes.add(Sphere::new(0.35))),
+                    MeshMaterial3d(mold_green.clone()),
+                    Transform::from_xyz(angle.cos() * 1.2, (angle * 2.0).sin() * 0.7, angle.sin() * 1.2),
+                ));
+            }
+            // The stem on top...
+            tomato.spawn((
+                Mesh3d(meshes.add(Capsule3d::new(0.12, 0.5))),
+                MeshMaterial3d(stem_brown.clone()),
+                Transform::from_xyz(0.0, 1.6, 0.0),
+            ));
+            // ...and floppy tomato leaves around the stem,
+            // tipped outward like a little green star.
+            for i in 0..5 {
+                let angle = i as f32 * 6.28 / 5.0;
+                tomato.spawn((
+                    Mesh3d(meshes.add(Cone::new(0.22, 0.7))),
+                    MeshMaterial3d(leaf_green.clone()),
+                    Transform::from_xyz(angle.cos() * 0.5, 1.35, angle.sin() * 0.5)
+                        // Lean each leaf away from the stem.
+                        .with_rotation(Quat::from_rotation_z(-angle.cos() * 1.2)
+                            * Quat::from_rotation_x(angle.sin() * 1.2)),
+                ));
+            }
+            // Giant angry eyes!
+            tomato.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.3))),
+                MeshMaterial3d(white.clone()),
+                Transform::from_xyz(-0.5, 0.4, 1.15),
+            ));
+            tomato.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.3))),
+                MeshMaterial3d(white.clone()),
+                Transform::from_xyz(0.5, 0.4, 1.15),
+            ));
+        })
+        .id()
+}
+
+/// Build BAD BAT: a dark bat with big wings, pointy ears,
+/// and glowing red eyes. Gives back the bat's id.
+pub fn spawn_bat_visual(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    place: Transform,
+) -> Entity {
+    let bat_dark = materials.add(Color::srgb(0.15, 0.12, 0.2));
+    let eye_red = materials.add(StandardMaterial {
+        base_color: Color::srgb(1.0, 0.1, 0.1),
+        emissive: LinearRgba::new(4.0, 0.2, 0.2, 1.0), // GLOWING eyes!
+        ..default()
+    });
+
+    commands
+        .spawn((place, Visibility::default()))
+        .with_children(|bat| {
+            // The round dark body.
+            bat.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.9))),
+                MeshMaterial3d(bat_dark.clone()),
+                Transform::from_xyz(0.0, 0.0, 0.0),
+            ));
+            // Two BIG flat wings, one each side, tilted up.
+            // (A wing is just a very squashed box!)
+            bat.spawn((
+                Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
+                MeshMaterial3d(bat_dark.clone()),
+                Transform::from_xyz(-1.6, 0.3, 0.0)
+                    .with_rotation(Quat::from_rotation_z(0.4)),
+            ));
+            bat.spawn((
+                Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
+                MeshMaterial3d(bat_dark.clone()),
+                Transform::from_xyz(1.6, 0.3, 0.0)
+                    .with_rotation(Quat::from_rotation_z(-0.4)),
+            ));
+            // Two pointy ears on top.
+            bat.spawn((
+                Mesh3d(meshes.add(Cone::new(0.2, 0.6))),
+                MeshMaterial3d(bat_dark.clone()),
+                Transform::from_xyz(-0.4, 1.0, 0.0),
+            ));
+            bat.spawn((
+                Mesh3d(meshes.add(Cone::new(0.2, 0.6))),
+                MeshMaterial3d(bat_dark.clone()),
+                Transform::from_xyz(0.4, 1.0, 0.0),
+            ));
+            // Glowing red eyes. Spooky!
+            bat.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.14))),
+                MeshMaterial3d(eye_red.clone()),
+                Transform::from_xyz(-0.3, 0.15, 0.8),
+            ));
+            bat.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.14))),
+                MeshMaterial3d(eye_red.clone()),
+                Transform::from_xyz(0.3, 0.15, 0.8),
+            ));
+        })
+        .id()
+}
+
 /// Build ONE level piece at one spot on the road.
 /// The game builds whole levels with this, and the
 /// LEVEL EDITOR uses it to show pieces as you place them!
@@ -791,61 +924,42 @@ fn switch_level(
         spawn_piece(&mut commands, &mut meshes, &mut materials, piece, start_z);
     }
 
-    let red = materials.add(Color::srgb(0.9, 0.1, 0.1));
     let gold = materials.add(Color::srgb(1.0, 0.85, 0.2));
-    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
 
-    if new_level == levels::FIRST_BOSS {
-        // ---------- THE BIG RED BOSS! ----------
-        // A GIANT angry ball floats ahead and throws
-        // bouncing balls at you.
-        commands
-            .spawn((
-                LevelStuff,
-                Boss {
-                    kind: BossKind::BigRed,
-                    hearts: BOSS_HEARTS,
-                    throw_timer: 0.0,
-                    shots_dodged: 0,
-                },
-                Mesh3d(meshes.add(Sphere::new(1.4))),
-                MeshMaterial3d(red.clone()),
-                Transform::from_xyz(0.0, 2.2, -16.0),
-                Visibility::default(),
-            ))
-            .with_children(|boss| {
-                // Giant angry eyes!
-                boss.spawn((
-                    Mesh3d(meshes.add(Sphere::new(0.3))),
-                    MeshMaterial3d(white.clone()),
-                    Transform::from_xyz(-0.5, 0.4, 1.15),
-                ));
-                boss.spawn((
-                    Mesh3d(meshes.add(Sphere::new(0.3))),
-                    MeshMaterial3d(white.clone()),
-                    Transform::from_xyz(0.5, 0.4, 1.15),
-                ));
-                // A golden crown, because he is the boss.
-                boss.spawn((
-                    Mesh3d(meshes.add(Cone::new(0.5, 0.7))),
-                    MeshMaterial3d(gold.clone()),
-                    Transform::from_xyz(0.0, 1.5, 0.0),
-                ));
-            });
-    } else if new_level == levels::FINAL_BOSS {
-        // ---------- THE CURSED THORN! ----------
-        // The FINAL boss: the spooky rose in a flower pot.
-        let plant = spawn_thorn_plant(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            Transform::from_xyz(0.0, 0.0, -16.0),
-        );
-        commands.entity(plant).insert((
+    // The level book tells us if a boss lives on this
+    // stage — and which one!
+    let boss_word = book.get(new_level).boss.clone();
+
+    if !boss_word.is_empty() {
+        // ---------- A BOSS STAGE! ----------
+        // Build the right villain for this stage.
+        let start = Transform::from_xyz(0.0, 0.0, -16.0);
+        let (villain, kind, hearts) = match boss_word.as_str() {
+            // The moldy menace. Floats and spits seeds.
+            "tomato" => (
+                spawn_tomato_visual(&mut commands, &mut meshes, &mut materials, start),
+                BossKind::RottenTomato,
+                BOSS_HEARTS,
+            ),
+            // The spooky rose. Slides and shoots thorns.
+            "thorn" => (
+                spawn_thorn_plant(&mut commands, &mut meshes, &mut materials, start),
+                BossKind::CursedThorn,
+                BOSS_HEARTS,
+            ),
+            // BAD BAT — one EXTRA heart, because he's the
+            // final boss and he knows it.
+            _ => (
+                spawn_bat_visual(&mut commands, &mut meshes, &mut materials, start),
+                BossKind::BadBat,
+                BOSS_HEARTS + 1,
+            ),
+        };
+        commands.entity(villain).insert((
             LevelStuff,
             Boss {
-                kind: BossKind::CursedThorn,
-                hearts: BOSS_HEARTS,
+                kind,
+                hearts,
                 throw_timer: 0.0,
                 shots_dodged: 0,
             },
@@ -1051,6 +1165,7 @@ fn boss_fight(
     mut materials: ResMut<Assets<StandardMaterial>>,
     time: Res<Time>,
     font: Res<GameFont>,
+    game: Res<Game>,
     mut party: ResMut<Party>,
     mut bosses: Query<(&mut Boss, &mut Transform)>,
 ) {
@@ -1061,14 +1176,20 @@ fn boss_fight(
     for (mut boss, mut position) in &mut bosses {
         // Each boss moves in its own spooky way (wave math!).
         match boss.kind {
-            // The Big Red Boss floats up and down menacingly.
-            BossKind::BigRed => {
+            // The Rotten Tomato bobs up and down menacingly.
+            BossKind::RottenTomato => {
                 position.translation.y = 2.2 + (time.elapsed_secs() * 1.5).sin() * 0.4;
             }
             // The Cursed Thorn slides SIDE TO SIDE in its
             // pot, so its thorns come at you from angles!
             BossKind::CursedThorn => {
                 position.translation.x = (time.elapsed_secs() * 0.9).sin() * 2.5;
+            }
+            // BAD BAT swoops EVERY which way — two different
+            // waves at once, sideways AND up-down. Tricky!
+            BossKind::BadBat => {
+                position.translation.x = (time.elapsed_secs() * 1.3).sin() * 3.0;
+                position.translation.y = 3.0 + (time.elapsed_secs() * 2.1).sin() * 1.3;
             }
         }
 
@@ -1081,18 +1202,18 @@ fn boss_fight(
             boss.throw_timer = 0.0;
 
             match boss.kind {
-                // The Big Red Boss throws a dark ball that
-                // rolls straight at the bunny.
-                BossKind::BigRed => {
+                // The Rotten Tomato spits a big slimy SEED
+                // that rolls straight at the bunny.
+                BossKind::RottenTomato => {
                     commands.spawn((
                         LevelStuff,
                         Deadly,
                         BossShot {
                             velocity: Vec3::new(0.0, 0.0, 9.0),
                         },
-                        Mesh3d(meshes.add(Sphere::new(0.4))),
-                        MeshMaterial3d(materials.add(Color::srgb(0.3, 0.0, 0.4))),
-                        Transform::from_xyz(0.0, 0.4, position.translation.z),
+                        Mesh3d(meshes.add(Sphere::new(0.35))),
+                        MeshMaterial3d(materials.add(Color::srgb(0.9, 0.85, 0.6))),
+                        Transform::from_xyz(0.0, 0.35, position.translation.z),
                     ));
                 }
                 // The Cursed Thorn shoots a THORN from its
@@ -1121,16 +1242,43 @@ fn boss_fight(
                             )),
                     ));
                 }
+                // BAD BAT fires a LASER — long, glowing, and
+                // FAST (speed 15!) — aimed from wherever he
+                // swooped to, straight at the bunny's spot.
+                BossKind::BadBat => {
+                    let mouth = position.translation + Vec3::new(0.0, -0.2, 0.8);
+                    let aim_at = Vec3::new(0.0, 0.5, 0.0);
+                    let velocity = (aim_at - mouth).normalize() * 15.0;
+
+                    commands.spawn((
+                        LevelStuff,
+                        Deadly,
+                        BossShot { velocity },
+                        // A long skinny glowing red beam!
+                        Mesh3d(meshes.add(Cuboid::new(0.15, 0.15, 2.2))),
+                        MeshMaterial3d(materials.add(StandardMaterial {
+                            base_color: Color::srgb(1.0, 0.2, 0.2),
+                            emissive: LinearRgba::new(6.0, 0.4, 0.4, 1.0),
+                            ..default()
+                        })),
+                        Transform::from_translation(mouth)
+                            // Point the beam the way it flies!
+                            .with_rotation(Quat::from_rotation_arc(
+                                Vec3::Z,
+                                velocity.normalize(),
+                            )),
+                    ));
+                }
             }
         }
 
         // Did we take away ALL its hearts? WE WIN!
         if boss.hearts <= 0 {
             let (message, next_level) = match boss.kind {
-                // Beat the first boss → on to level 5!
-                BossKind::BigRed => ("BOSS DEFEATED!", levels::FIRST_BOSS + 1),
-                // Beat the FINAL boss → you won it all!
-                BossKind::CursedThorn => ("YOU WIN THE WHOLE GAME!", 1),
+                // Beat BAD BAT → you won the whole game!
+                BossKind::BadBat => ("YOU WIN THE WHOLE GAME!", 1),
+                // Beat any other boss → on to the next stage!
+                _ => ("BOSS DEFEATED!", game.level + 1),
             };
             start_party(
                 &mut commands,
@@ -1453,9 +1601,11 @@ fn update_words(
             let hearts = "<3 ".repeat(boss.hearts.max(0) as usize);
             *t = Text::new(format!("BOSS  {hearts}"));
         } else {
+            // Bosses don't count as levels, so we ask the
+            // book for the REAL level number of this stage.
             *t = Text::new(format!(
                 "Level {}: {}",
-                game.level,
+                book.level_number(game.level),
                 book.get(game.level).name
             ));
         }

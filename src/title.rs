@@ -8,8 +8,9 @@
 //! Press 1 to PLAY, 2 for SETTINGS, 3 for the EDITOR.
 
 use crate::{
-    editor::Editor, levels::LevelBook, spawn_bunny_visual, spawn_thorn_plant, GameFont,
-    MainCamera, ReadingFont, Screen, Settings,
+    editor::Editor, levels::LevelBook, spawn_bat_visual, spawn_bunny_visual,
+    spawn_thorn_plant, spawn_tomato_visual, GameFont, MainCamera, ReadingFont, Screen,
+    Settings,
 };
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
@@ -70,18 +71,35 @@ fn open_title(
     );
     commands.entity(bunny).insert(TitleStuff);
 
-    // ----- The Cursed Thorn, on the right -----
-    // Its eyes and petals are on its front, so we leave it
-    // unturned — facing the camera, glaring right at YOU.
+    // ----- ALL THREE BOSSES, lined up on the right! -----
+    // The Rotten Tomato, front and center...
+    let tomato = spawn_tomato_visual(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        Transform::from_xyz(2.4, 1.3, 3.0).with_scale(Vec3::splat(0.7)),
+    );
+    commands.entity(tomato).insert(TitleStuff);
+
+    // ...the Cursed Thorn behind him...
     let plant = spawn_thorn_plant(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(3.8, 0.0, 1.0),
+        Transform::from_xyz(4.8, 0.0, 0.0),
     );
     commands.entity(plant).insert(TitleStuff);
 
-    // ----- A thorn frozen mid-flight between them! -----
+    // ...and BAD BAT swooping overhead!
+    let bat = spawn_bat_visual(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        Transform::from_xyz(2.2, 5.2, -1.0).with_scale(Vec3::splat(0.9)),
+    );
+    commands.entity(bat).insert(TitleStuff);
+
+    // ----- A thorn frozen mid-flight at the bunny! -----
     commands.spawn((
         TitleStuff,
         Mesh3d(meshes.add(Cone::new(0.22, 0.8))),
@@ -112,14 +130,21 @@ fn open_title(
         TitleStuff,
         Mesh3d(meshes.add(Sphere::new(0.55))),
         MeshMaterial3d(red.clone()),
-        Transform::from_xyz(1.2, 0.55, 4.5),
+        Transform::from_xyz(0.2, 0.55, 4.8),
+    ));
+    commands.spawn((
+        TitleStuff,
+        // A tall platform cube on the far left.
+        Mesh3d(meshes.add(Cuboid::new(1.2, 2.4, 1.2))),
+        MeshMaterial3d(purple.clone()),
+        Transform::from_xyz(-6.4, 1.2, 2.5),
     ));
     commands.spawn((
         TitleStuff,
         // An upside-down sky spike, floating decoratively.
         Mesh3d(meshes.add(Cone::new(0.6, 1.4))),
         MeshMaterial3d(blue.clone()),
-        Transform::from_xyz(5.6, 4.5, 2.0)
+        Transform::from_xyz(-4.8, 4.8, 0.0)
             .with_rotation(Quat::from_rotation_x(std::f32::consts::PI)),
     ));
 
@@ -143,10 +168,10 @@ fn open_title(
     ));
     commands.spawn((
         TitleStuff,
-        Text::new("vs. THE CURSED THORN"),
+        Text::new("HOP! JUMP! DASH!"),
         TextFont {
             font: font.0.clone(),
-            font_size: 44.0,
+            font_size: 40.0,
             ..default()
         },
         TextColor(Color::srgb(1.0, 0.4, 0.7)),

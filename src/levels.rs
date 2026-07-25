@@ -10,21 +10,18 @@ use crate::Piece;
 use bevy::prelude::Resource;
 use std::fs;
 
-/// Level 4 is the first boss...
-pub const FIRST_BOSS: usize = 4;
-
-/// ...and level 7 is the FINAL boss: the Cursed Thorn!
-pub const FINAL_BOSS: usize = 7;
-
 /// Where the level book lives on disk.
 pub const LEVELS_FILE: &str = "assets/levels.txt";
 
-/// Everything we know about ONE level.
+/// Everything we know about ONE stage of the game.
 pub struct LevelData {
     pub name: String,
     pub speed: f32,
     /// Where the golden gate is (a minus number, like pieces).
     pub finish: f32,
+    /// Which boss lives here: "tomato", "thorn", or "bat".
+    /// Empty ("") means it's a normal level, not a boss!
+    pub boss: String,
     /// The list of pieces, just like always!
     pub pieces: Vec<(Piece, f32)>,
 }
@@ -47,6 +44,19 @@ impl LevelBook {
     pub fn get_mut(&mut self, level: usize) -> &mut LevelData {
         let page = (level - 1).min(self.levels.len() - 1);
         &mut self.levels[page]
+    }
+
+    /// Bosses don't count as levels! This counts only the
+    /// REAL levels up to this stage, so stage 5 (which
+    /// comes after the first boss) is shown as "Level 4".
+    pub fn level_number(&self, stage: usize) -> usize {
+        let mut count = 0;
+        for page in 0..stage.min(self.levels.len()) {
+            if self.levels[page].boss.is_empty() {
+                count += 1;
+            }
+        }
+        count
     }
 }
 
@@ -105,8 +115,15 @@ pub fn load_level_book() -> LevelBook {
                 name: words[2..].join(" "),
                 speed: 8.0,
                 finish: 0.0,
+                boss: String::new(),
                 pieces: Vec::new(),
             }),
+            // "boss tomato" → this stage is a boss fight!
+            "boss" => {
+                if let Some(level) = levels.last_mut() {
+                    level.boss = words[1].to_string();
+                }
+            }
             // "speed 9" → how fast this level goes.
             "speed" => {
                 if let Some(level) = levels.last_mut() {
@@ -148,13 +165,12 @@ pub fn save_level_book(book: &LevelBook) {
     );
 
     for (i, level) in book.levels.iter().enumerate() {
-        out += &format!(
-            "\nlevel {} {}\nspeed {}\nfinish {}\n",
-            i + 1,
-            level.name,
-            level.speed,
-            -level.finish,
-        );
+        out += &format!("\nlevel {} {}\n", i + 1, level.name);
+        // Boss stages remember which boss lives there.
+        if !level.boss.is_empty() {
+            out += &format!("boss {}\n", level.boss);
+        }
+        out += &format!("speed {}\nfinish {}\n", level.speed, -level.finish);
         for (piece, z) in &level.pieces {
             // Flip the minus numbers back to plus for the
             // file, and round to one decimal place so the

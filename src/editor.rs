@@ -22,9 +22,6 @@ use crate::{
 use bevy::light::NotShadowCaster;
 use bevy::prelude::*;
 
-/// The levels you're allowed to edit.
-/// (4 and 7 are boss fights — no pieces to place!)
-const EDITABLE_LEVELS: [usize; 5] = [1, 2, 3, 5, 6];
 
 /// The cursor hops along the road in steps this big.
 /// Whole-number steps mean every piece lands on a nice
@@ -230,14 +227,20 @@ fn editor_keys(
     editor.cursor = editor.cursor.round();
 
     // ---- Picking which level to edit (the L key) ----
-    // Pressing L hops to the next level in the list, and
-    // "%" wraps back around to the start after the last!
+    // Pressing L hops to the next stage — but SKIPS the
+    // boss stages, because bosses bring their own trouble
+    // and have no pieces to edit! "%" wraps back around
+    // to stage 1 after the last one.
     if keyboard.just_pressed(KeyCode::KeyL) {
-        let spot = EDITABLE_LEVELS
-            .iter()
-            .position(|&l| l == editor.level)
-            .unwrap_or(0);
-        editor.level = EDITABLE_LEVELS[(spot + 1) % EDITABLE_LEVELS.len()];
+        let total = book.levels.len();
+        let mut next = editor.level;
+        loop {
+            next = next % total + 1; // 1, 2, 3 ... then back to 1
+            if book.get(next).boss.is_empty() {
+                break; // found a real level — stop here!
+            }
+        }
+        editor.level = next;
         editor.needs_redraw = true;
     }
 
@@ -375,7 +378,7 @@ fn update_status(
     for mut text in &mut words {
         *text = Text::new(format!(
             "EDITING  Level {}: {}     spot {:.0}     {} pieces     {}",
-            editor.level,
+            book.level_number(editor.level),
             level.name,
             editor.cursor,
             level.pieces.len(),
