@@ -113,7 +113,7 @@ fn open_title(
         Text::new("3D BUNNY DASH"),
         TextFont {
             font: font.0.clone(),
-            font_size: 100.0,
+            font_size: 120.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -134,7 +134,7 @@ fn open_title(
             Text::new(""),
             TextFont {
                 font: reading.0.clone(),
-                font_size: 36.0,
+                font_size: 44.0,
                 ..default()
             },
             TextLayout::new_with_justify(Justify::Center),
@@ -152,7 +152,7 @@ fn open_title(
                     TextColor(crate::YELLOW),
                     TextFont {
                         font: reading.0.clone(),
-                        font_size: 36.0,
+                        font_size: 44.0,
                         ..default()
                     },
                 ));
@@ -161,7 +161,7 @@ fn open_title(
                     TextColor(Color::WHITE),
                     TextFont {
                         font: reading.0.clone(),
-                        font_size: 36.0,
+                        font_size: 44.0,
                         ..default()
                     },
                 ));
@@ -214,7 +214,7 @@ fn open_settings(mut commands: Commands, font: Res<GameFont>, reading: Res<Readi
         TextFont {
             // The big fancy font for the big heading!
             font: font.0.clone(),
-            font_size: 84.0,
+            font_size: 96.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -233,7 +233,7 @@ fn open_settings(mut commands: Commands, font: Res<GameFont>, reading: Res<Readi
         TextFont {
             // The easy-reading font for the smaller words.
             font: reading.0.clone(),
-            font_size: 40.0,
+            font_size: 48.0,
             ..default()
         },
         TextColor(crate::YELLOW),
