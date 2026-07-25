@@ -263,6 +263,13 @@ fn editor_keys(
             // Keep the list sorted: closest pieces first.
             level.pieces.sort_by(|a, b| b.1.total_cmp(&a.1));
 
+            // If we built PAST the finish line, scoot the
+            // golden gate 10 farther back so the level
+            // always ends after the last piece!
+            if here - 10.0 < level.finish {
+                level.finish = here - 10.0;
+            }
+
             editor.needs_redraw = true;
         }
     }
