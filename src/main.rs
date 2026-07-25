@@ -528,7 +528,6 @@ pub fn spawn_tomato_visual(
     place: Transform,
 ) -> Entity {
     let tomato_red = materials.add(Color::srgb(0.75, 0.15, 0.1));
-    let mold_green = materials.add(Color::srgb(0.45, 0.5, 0.2));
     let leaf_green = materials.add(Color::srgb(0.25, 0.6, 0.25));
     let stem_brown = materials.add(Color::srgb(0.4, 0.3, 0.15));
     let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
@@ -542,16 +541,6 @@ pub fn spawn_tomato_visual(
                 MeshMaterial3d(tomato_red.clone()),
                 Transform::from_xyz(0.0, 0.0, 0.0),
             ));
-            // Yucky mold spots! cos & sin walk them around
-            // the tomato's tummy — circle math again!
-            for i in 0..5 {
-                let angle = i as f32 * 6.28 / 5.0;
-                tomato.spawn((
-                    Mesh3d(meshes.add(Sphere::new(0.35))),
-                    MeshMaterial3d(mold_green.clone()),
-                    Transform::from_xyz(angle.cos() * 1.2, (angle * 2.0).sin() * 0.7, angle.sin() * 1.2),
-                ));
-            }
             // The stem on top...
             tomato.spawn((
                 Mesh3d(meshes.add(Capsule3d::new(0.12, 0.5))),
@@ -1202,7 +1191,7 @@ fn boss_fight(
             boss.throw_timer = 0.0;
 
             match boss.kind {
-                // The Rotten Tomato spits a big slimy SEED
+                // The Rotten Tomato spits a big BLACK SEED
                 // that rolls straight at the bunny.
                 BossKind::RottenTomato => {
                     commands.spawn((
@@ -1212,7 +1201,7 @@ fn boss_fight(
                             velocity: Vec3::new(0.0, 0.0, 9.0),
                         },
                         Mesh3d(meshes.add(Sphere::new(0.35))),
-                        MeshMaterial3d(materials.add(Color::srgb(0.9, 0.85, 0.6))),
+                        MeshMaterial3d(materials.add(Color::srgb(0.05, 0.05, 0.05))),
                         Transform::from_xyz(0.0, 0.35, position.translation.z),
                     ));
                 }
@@ -1595,19 +1584,17 @@ fn update_words(
     }
 
     for mut t in &mut level_text {
-        // Is there a boss? Show its hearts too!
+        // Every screen asks the level book for the stage's
+        // one true name tag — "Level 4: Sky Stairs" or
+        // "Boss 1: Rotten Tomato" — so the counting always
+        // matches everywhere!
         if let Some(boss) = bosses.iter().next() {
+            // On a boss stage, show its hearts too.
             // "repeat" copies the heart once per health point.
             let hearts = "<3 ".repeat(boss.hearts.max(0) as usize);
-            *t = Text::new(format!("BOSS  {hearts}"));
+            *t = Text::new(format!("{}  {hearts}", book.label(game.level)));
         } else {
-            // Bosses don't count as levels, so we ask the
-            // book for the REAL level number of this stage.
-            *t = Text::new(format!(
-                "Level {}: {}",
-                book.level_number(game.level),
-                book.get(game.level).name
-            ));
+            *t = Text::new(book.label(game.level));
         }
     }
 }

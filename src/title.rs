@@ -304,14 +304,15 @@ fn settings_keys(
         next_screen.set(Screen::Title);
     }
 
-    // Keep the words up to date.
+    // Keep the words up to date. The level book hands us
+    // the stage's one true name tag, so the counting here
+    // matches the rest of the game!
     for mut text in &mut words {
         *text = Text::new(format!(
-            "Starting level:  <  {}: {}  >\n\n\
+            "Start at:  <  {}  >\n\n\
              press Left / Right to change\n\n\
              Esc: back to the title screen",
-            settings.starting_level,
-            book.get(settings.starting_level).name,
+            book.label(settings.starting_level),
         ));
     }
 }

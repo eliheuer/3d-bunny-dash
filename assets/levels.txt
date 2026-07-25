@@ -4,9 +4,6 @@
 # Pieces: spike cube tall triple cubespike skyspike badguy
 # Distances are how far down the road. Edit me by hand,
 # or use the LEVEL EDITOR in the game!
-#
-# A "boss" line makes that stage a boss fight instead
-# of a normal level: tomato, thorn, or bat!
 
 level 1 Bunny Meadow
 speed 8
@@ -144,7 +141,7 @@ cubespike 112
 spike 113
 cube 114
 cube 115
-badguy 116
+cube 116
 cube 117
 cube 118
 cube 119
@@ -220,7 +217,7 @@ badguy 43
 cube 50
 cube 51
 cube 52
-cubespike 53
+cube 53
 badguy 61
 skyspike 68
 badguy 75

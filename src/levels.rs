@@ -58,6 +58,31 @@ impl LevelBook {
         }
         count
     }
+
+    /// And this counts only the BOSSES up to this stage,
+    /// so the Cursed Thorn (stage 8) is "Boss 2".
+    pub fn boss_number(&self, stage: usize) -> usize {
+        let mut count = 0;
+        for page in 0..stage.min(self.levels.len()) {
+            if !self.levels[page].boss.is_empty() {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// THE ONE TRUE NAME TAG! Every screen in the game
+    /// asks here, so a stage is always called the same
+    /// thing everywhere: "Level 4: Sky Stairs" for real
+    /// levels, "Boss 1: Rotten Tomato" for bosses.
+    pub fn label(&self, stage: usize) -> String {
+        let data = self.get(stage);
+        if data.boss.is_empty() {
+            format!("Level {}: {}", self.level_number(stage), data.name)
+        } else {
+            format!("Boss {}: {}", self.boss_number(stage), data.name)
+        }
+    }
 }
 
 /// Turn a piece into the word we write in the file.

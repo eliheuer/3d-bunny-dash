@@ -377,9 +377,8 @@ fn update_status(
     let level = book.get(editor.level);
     for mut text in &mut words {
         *text = Text::new(format!(
-            "EDITING  Level {}: {}     spot {:.0}     {} pieces     {}",
-            book.level_number(editor.level),
-            level.name,
+            "EDITING  {}     spot {:.0}     {} pieces     {}",
+            book.label(editor.level),
             editor.cursor,
             level.pieces.len(),
             editor.message,
