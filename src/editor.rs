@@ -437,8 +437,7 @@ fn editor_keys(
 
 fn redraw_pieces(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    assets: Res<crate::GameAssets>,
     mut editor: ResMut<Editor>,
     book: Res<LevelBook>,
     old_pieces: Query<Entity, With<LevelStuff>>,
@@ -453,7 +452,7 @@ fn redraw_pieces(
     }
 
     for (piece, z) in book.get(editor.level).pieces.clone() {
-        spawn_piece(&mut commands, &mut meshes, &mut materials, piece, z);
+        spawn_piece(&mut commands, &assets, piece, z);
     }
 }
 

@@ -55,6 +55,7 @@ fn open_title(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    assets: Res<crate::GameAssets>,
     font: Res<GameFont>,
     reading: Res<ReadingFont>,
     mut cameras: Query<&mut Transform, With<MainCamera>>,
@@ -91,7 +92,7 @@ fn open_title(
         (crate::Piece::SkySpike, -12.0),
         (crate::Piece::BadGuy, -15.0),
     ] {
-        crate::spawn_piece(&mut commands, &mut meshes, &mut materials, piece, spot);
+        crate::spawn_piece(&mut commands, &assets, piece, spot);
     }
 
     // ----- ALL THREE BOSSES at the end of the road! -----

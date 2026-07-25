@@ -212,6 +212,10 @@ struct TomatoEye;
 #[derive(Component)]
 struct Swaying;
 
+/// A sticker for fireballs, so they FLICKER like flame.
+#[derive(Component)]
+struct Flickering;
+
 /// Something a boss threw at you — a ball or a thorn!
 #[derive(Component)]
 struct BossShot {
@@ -280,6 +284,46 @@ pub struct GameFont(pub Handle<Font>);
 #[derive(Resource)]
 pub struct ReadingFont(pub Handle<Font>);
 
+/// THE SHAPE-AND-PAINT CUPBOARD!
+/// The graphics card is fastest when everything shares —
+/// so we make ONE of each shape and ONE pot of each paint
+/// when the game starts, and every spike, cube, shot, and
+/// spark borrows from the cupboard instead of making its
+/// own. A thousand cubes, one cube shape!
+#[derive(Resource)]
+pub struct GameAssets {
+    // Shapes:
+    pub spike_shape: Handle<Mesh>,
+    pub cube_shape: Handle<Mesh>,
+    pub tall_shape: Handle<Mesh>,
+    pub triple_shape: Handle<Mesh>,
+    pub ball_shape: Handle<Mesh>,
+    pub eye_shape: Handle<Mesh>,
+    pub post_shape: Handle<Mesh>,
+    pub bar_shape: Handle<Mesh>,
+    pub seed_shape: Handle<Mesh>,
+    pub thorn_shape: Handle<Mesh>,
+    pub beam_shape: Handle<Mesh>,
+    pub ring_shape: Handle<Mesh>,
+    pub fire_core_shape: Handle<Mesh>,
+    pub fire_tail_shape: Handle<Mesh>,
+    pub spark_shape: Handle<Mesh>,
+    // Paints:
+    pub orange: Handle<StandardMaterial>,
+    pub purple: Handle<StandardMaterial>,
+    pub blue: Handle<StandardMaterial>,
+    pub red: Handle<StandardMaterial>,
+    pub white: Handle<StandardMaterial>,
+    pub ink: Handle<StandardMaterial>,
+    pub gold: Handle<StandardMaterial>,
+    pub thorn_gray: Handle<StandardMaterial>,
+    pub laser_glow: Handle<StandardMaterial>,
+    pub wave_glow: Handle<StandardMaterial>,
+    pub fire_glow: Handle<StandardMaterial>,
+    pub fire_hot_glow: Handle<StandardMaterial>,
+    pub spark_glow: Vec<Handle<StandardMaterial>>,
+}
+
 /// The game's camera spot. The title screen and the game
 /// both ask here, so they always match.
 pub fn action_camera() -> Transform {
@@ -334,6 +378,16 @@ fn main() {
         .load("fonts/VirtuaGrotesk.ttf");
     app.insert_resource(ReadingFont(reading));
 
+    // Fill the shape-and-paint cupboard before anything
+    // runs, so every screen can borrow from it right away.
+    let cupboard = app
+        .world_mut()
+        .resource_scope(|world, mut meshes: Mut<Assets<Mesh>>| {
+            let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
+            build_game_assets(&mut meshes, &mut materials)
+        });
+    app.insert_resource(cupboard);
+
     app.add_plugins(MaterialPlugin::<LavaLampMaterial>::default())
         .add_plugins(title::TitlePlugin)
         .add_plugins(editor::EditorPlugin)
@@ -360,7 +414,7 @@ fn main() {
         // thorn sways, and ears flop on the title too!
         .add_systems(
             Update,
-            (flap_wings, blink_tomato_eyes, sway_plants, flop_ears),
+            (flap_wings, blink_tomato_eyes, sway_plants, flop_ears, flicker_fire),
         )
         // Run when we START and STOP playing:
         .add_systems(OnEnter(Screen::Playing), start_playing)
@@ -391,6 +445,74 @@ fn main() {
 }
 
 // ======================================================
+//  FILLING THE CUPBOARD
+// ======================================================
+
+/// Fill the cupboard: one of each shape, one pot of
+/// each paint, shared by the whole game forever.
+fn build_game_assets(
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) -> GameAssets {
+    let firework_colors = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK];
+    GameAssets {
+        spike_shape: meshes.add(Cone::new(0.6, 1.4)),
+        cube_shape: meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE)),
+        tall_shape: meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 2.0, CUBE_SIZE)),
+        triple_shape: meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 3.0, CUBE_SIZE)),
+        ball_shape: meshes.add(Sphere::new(0.55)),
+        eye_shape: meshes.add(Sphere::new(0.12)),
+        post_shape: meshes.add(Cuboid::new(0.4, 4.0, 0.4)),
+        bar_shape: meshes.add(Cuboid::new(4.4, 0.4, 0.4)),
+        seed_shape: meshes.add(Sphere::new(0.35)),
+        thorn_shape: meshes.add(Cone::new(0.22, 0.8)),
+        beam_shape: meshes.add(Cuboid::new(0.15, 0.15, 2.2)),
+        ring_shape: meshes.add(Torus::new(0.45, 0.65)),
+        fire_core_shape: meshes.add(Sphere::new(0.32)),
+        fire_tail_shape: meshes.add(Cone::new(0.24, 0.7)),
+        spark_shape: meshes.add(Sphere::new(0.12)),
+        orange: materials.add(ORANGE),
+        purple: materials.add(PURPLE),
+        blue: materials.add(BLUE),
+        red: materials.add(RED),
+        white: materials.add(WHITE),
+        ink: materials.add(INK),
+        gold: materials.add(YELLOW),
+        thorn_gray: materials.add(Color::srgb(0.45, 0.45, 0.4)),
+        laser_glow: materials.add(StandardMaterial {
+            base_color: RED,
+            emissive: LinearRgba::new(6.0, 0.4, 0.4, 1.0),
+            ..default()
+        }),
+        wave_glow: materials.add(StandardMaterial {
+            base_color: PURPLE,
+            emissive: LinearRgba::new(2.5, 1.2, 4.5, 1.0),
+            ..default()
+        }),
+        fire_glow: materials.add(StandardMaterial {
+            base_color: ORANGE,
+            emissive: LinearRgba::new(5.0, 2.0, 0.3, 1.0),
+            ..default()
+        }),
+        fire_hot_glow: materials.add(StandardMaterial {
+            base_color: YELLOW,
+            emissive: LinearRgba::new(6.0, 5.0, 1.0, 1.0),
+            ..default()
+        }),
+        spark_glow: firework_colors
+            .iter()
+            .map(|&color| {
+                materials.add(StandardMaterial {
+                    base_color: color,
+                    emissive: color.to_linear() * 3.0,
+                    ..default()
+                })
+            })
+            .collect(),
+    }
+}
+
+// ======================================================
 //  BUILD THE WORLD — the things that are ALWAYS there:
 //  ground, sun, camera, and the lava lamp background.
 // ======================================================
@@ -401,7 +523,6 @@ fn build_the_world(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut lava: ResMut<Assets<LavaLampMaterial>>,
 ) {
-
     // ---------- THE GROUND ----------
     // A big flat box: 8 wide, nice and long, thin like a
     // pancake. It runs from behind the bunny to far ahead...
@@ -783,20 +904,7 @@ pub fn spawn_bat_visual(
 /// Build ONE level piece at one spot on the road.
 /// The game builds whole levels with this, and the
 /// LEVEL EDITOR uses it to show pieces as you place them!
-pub fn spawn_piece(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    piece: Piece,
-    start_z: f32,
-) {
-    let orange = materials.add(ORANGE);
-    let purple = materials.add(PURPLE);
-    let blue = materials.add(BLUE);
-    let red = materials.add(RED);
-    let white = materials.add(WHITE);
-    let spike_shape = meshes.add(Cone::new(0.6, 1.4));
-
+pub fn spawn_piece(commands: &mut Commands, assets: &GameAssets, piece: Piece, start_z: f32) {
     match piece {
         // Orange spike sitting on the ground. JUMP!
         Piece::Spike => {
@@ -804,8 +912,8 @@ pub fn spawn_piece(
                 LevelStuff,
                 Scrolls,
                 Deadly,
-                Mesh3d(spike_shape.clone()),
-                MeshMaterial3d(orange.clone()),
+                Mesh3d(assets.spike_shape.clone()),
+                MeshMaterial3d(assets.orange.clone()),
                 Transform::from_xyz(0.0, 0.7, start_z),
             ));
         }
@@ -815,8 +923,8 @@ pub fn spawn_piece(
                 LevelStuff,
                 Scrolls,
                 Platform { top: CUBE_SIZE },
-                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE))),
-                MeshMaterial3d(purple.clone()),
+                Mesh3d(assets.cube_shape.clone()),
+                MeshMaterial3d(assets.purple.clone()),
                 Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
             ));
         }
@@ -828,8 +936,8 @@ pub fn spawn_piece(
                 Platform {
                     top: CUBE_SIZE * 2.0,
                 },
-                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 2.0, CUBE_SIZE))),
-                MeshMaterial3d(purple.clone()),
+                Mesh3d(assets.tall_shape.clone()),
+                MeshMaterial3d(assets.purple.clone()),
                 Transform::from_xyz(0.0, CUBE_SIZE, start_z),
             ));
         }
@@ -841,8 +949,8 @@ pub fn spawn_piece(
                 Platform {
                     top: CUBE_SIZE * 3.0,
                 },
-                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 3.0, CUBE_SIZE))),
-                MeshMaterial3d(purple.clone()),
+                Mesh3d(assets.triple_shape.clone()),
+                MeshMaterial3d(assets.purple.clone()),
                 Transform::from_xyz(0.0, CUBE_SIZE * 1.5, start_z),
             ));
         }
@@ -852,16 +960,16 @@ pub fn spawn_piece(
                 LevelStuff,
                 Scrolls,
                 Platform { top: CUBE_SIZE },
-                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE))),
-                MeshMaterial3d(purple.clone()),
+                Mesh3d(assets.cube_shape.clone()),
+                MeshMaterial3d(assets.purple.clone()),
                 Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
             ));
             commands.spawn((
                 LevelStuff,
                 Scrolls,
                 Deadly,
-                Mesh3d(spike_shape.clone()),
-                MeshMaterial3d(orange.clone()),
+                Mesh3d(assets.spike_shape.clone()),
+                MeshMaterial3d(assets.orange.clone()),
                 Transform::from_xyz(0.0, CUBE_SIZE + 0.7, start_z),
             ));
         }
@@ -872,8 +980,8 @@ pub fn spawn_piece(
                 LevelStuff,
                 Scrolls,
                 Deadly,
-                Mesh3d(spike_shape.clone()),
-                MeshMaterial3d(blue.clone()),
+                Mesh3d(assets.spike_shape.clone()),
+                MeshMaterial3d(assets.blue.clone()),
                 Transform::from_xyz(0.0, 2.2, start_z)
                     .with_rotation(Quat::from_rotation_x(std::f32::consts::PI)),
             ));
@@ -886,20 +994,20 @@ pub fn spawn_piece(
                     Scrolls,
                     Deadly,
                     Bouncing,
-                    Mesh3d(meshes.add(Sphere::new(0.55))),
-                    MeshMaterial3d(red.clone()),
+                    Mesh3d(assets.ball_shape.clone()),
+                    MeshMaterial3d(assets.red.clone()),
                     Transform::from_xyz(0.0, 0.55, start_z),
                     Visibility::default(),
                 ))
                 .with_children(|bad_guy| {
                     bad_guy.spawn((
-                        Mesh3d(meshes.add(Sphere::new(0.12))),
-                        MeshMaterial3d(white.clone()),
+                        Mesh3d(assets.eye_shape.clone()),
+                        MeshMaterial3d(assets.white.clone()),
                         Transform::from_xyz(-0.2, 0.2, 0.45),
                     ));
                     bad_guy.spawn((
-                        Mesh3d(meshes.add(Sphere::new(0.12))),
-                        MeshMaterial3d(white.clone()),
+                        Mesh3d(assets.eye_shape.clone()),
+                        MeshMaterial3d(assets.white.clone()),
                         Transform::from_xyz(0.2, 0.2, 0.45),
                     ));
                 });
@@ -1034,6 +1142,7 @@ fn switch_level(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    assets: Res<GameAssets>,
     mut game: ResMut<Game>,
     book: Res<LevelBook>,
     old_stuff: Query<Entity, With<LevelStuff>>,
@@ -1052,10 +1161,8 @@ fn switch_level(
 
     // Build every piece from the level book's list.
     for (piece, start_z) in book.get(new_level).pieces.clone() {
-        spawn_piece(&mut commands, &mut meshes, &mut materials, piece, start_z);
+        spawn_piece(&mut commands, &assets, piece, start_z);
     }
-
-    let gold = materials.add(YELLOW);
 
     // The level book tells us if a boss lives on this
     // stage — and which one!
@@ -1109,18 +1216,18 @@ fn switch_level(
             ))
             .with_children(|gate| {
                 gate.spawn((
-                    Mesh3d(meshes.add(Cuboid::new(0.4, 4.0, 0.4))),
-                    MeshMaterial3d(gold.clone()),
+                    Mesh3d(assets.post_shape.clone()),
+                    MeshMaterial3d(assets.gold.clone()),
                     Transform::from_xyz(-2.0, 2.0, 0.0),
                 ));
                 gate.spawn((
-                    Mesh3d(meshes.add(Cuboid::new(0.4, 4.0, 0.4))),
-                    MeshMaterial3d(gold.clone()),
+                    Mesh3d(assets.post_shape.clone()),
+                    MeshMaterial3d(assets.gold.clone()),
                     Transform::from_xyz(2.0, 2.0, 0.0),
                 ));
                 gate.spawn((
-                    Mesh3d(meshes.add(Cuboid::new(4.4, 0.4, 0.4))),
-                    MeshMaterial3d(gold.clone()),
+                    Mesh3d(assets.bar_shape.clone()),
+                    MeshMaterial3d(assets.gold.clone()),
                     Transform::from_xyz(0.0, 4.0, 0.0),
                 ));
             });
@@ -1340,6 +1447,21 @@ fn sway_plants(time: Res<Time>, mut plants: Query<&mut Transform, With<Swaying>>
 }
 
 // ======================================================
+//  FLICKERING — fireballs shiver bigger-smaller very
+//  fast, which is what makes flame look ALIVE.
+// ======================================================
+
+fn flicker_fire(time: Res<Time>, mut fires: Query<&mut Transform, With<Flickering>>) {
+    // A VERY fast little wave: 25 shivers a second,
+    // each only 12% bigger or smaller.
+    let shiver = 1.0 + (time.elapsed_secs() * 25.0).sin() * 0.12;
+
+    for mut fire in &mut fires {
+        fire.scale = Vec3::splat(shiver);
+    }
+}
+
+// ======================================================
 //  BOUNCING — the bad guys hop using WAVE MATH!
 // ======================================================
 
@@ -1363,8 +1485,7 @@ fn bounce_bad_guys(time: Res<Time>, mut bad_guys: Query<&mut Transform, With<Bou
 
 fn boss_fight(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    assets: Res<GameAssets>,
     time: Res<Time>,
     sounds: Res<AssetServer>,
     font: Res<GameFont>,
@@ -1426,8 +1547,8 @@ fn boss_fight(
                         BossShot {
                             velocity: Vec3::new(0.0, 0.0, 9.0),
                         },
-                        Mesh3d(meshes.add(Sphere::new(0.35))),
-                        MeshMaterial3d(materials.add(INK)),
+                        Mesh3d(assets.seed_shape.clone()),
+                        MeshMaterial3d(assets.ink.clone()),
                         Transform::from_xyz(0.0, 0.35, position.translation.z),
                     ));
                 }
@@ -1452,8 +1573,8 @@ fn boss_fight(
                         LevelStuff,
                         Deadly,
                         BossShot { velocity },
-                        Mesh3d(meshes.add(Cone::new(0.22, 0.8))),
-                        MeshMaterial3d(materials.add(Color::srgb(0.35, 0.4, 0.25))),
+                        Mesh3d(assets.thorn_shape.clone()),
+                        MeshMaterial3d(assets.thorn_gray.clone()),
                         Transform::from_translation(flower)
                             // Point the thorn the way it flies!
                             .with_rotation(Quat::from_rotation_arc(
@@ -1483,12 +1604,8 @@ fn boss_fight(
                             Deadly,
                             BossShot { velocity },
                             // A long skinny glowing red beam!
-                            Mesh3d(meshes.add(Cuboid::new(0.15, 0.15, 2.2))),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color: RED,
-                                emissive: LinearRgba::new(6.0, 0.4, 0.4, 1.0),
-                                ..default()
-                            })),
+                            Mesh3d(assets.beam_shape.clone()),
+                            MeshMaterial3d(assets.laser_glow.clone()),
                             Transform::from_translation(mouth)
                                 // Point the beam the way it flies!
                                 .with_rotation(Quat::from_rotation_arc(
@@ -1512,12 +1629,8 @@ fn boss_fight(
                             BossShot { velocity },
                             // A glowing purple ring (a donut
                             // shape — math calls it a torus!)
-                            Mesh3d(meshes.add(Torus::new(0.45, 0.65))),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color: PURPLE,
-                                emissive: LinearRgba::new(2.5, 1.2, 4.5, 1.0),
-                                ..default()
-                            })),
+                            Mesh3d(assets.ring_shape.clone()),
+                            MeshMaterial3d(assets.wave_glow.clone()),
                             Transform::from_translation(mouth)
                                 // Face the ring the way it flies!
                                 // (A torus lies flat, so we aim
@@ -1542,18 +1655,52 @@ fn boss_fight(
                             let target = aim_at + Vec3::new(spread * 2.5, 0.0, 0.0);
                             let velocity = (target - mouth).normalize() * 10.0;
 
-                            commands.spawn((
-                                LevelStuff,
-                                Deadly,
-                                BossShot { velocity },
-                                Mesh3d(meshes.add(Sphere::new(0.32))),
-                                MeshMaterial3d(materials.add(StandardMaterial {
-                                    base_color: ORANGE,
-                                    emissive: LinearRgba::new(5.0, 2.0, 0.3, 1.0), // burning glow!
-                                    ..default()
-                                })),
-                                Transform::from_translation(mouth),
-                            ));
+                            // A REAL fireball is three parts:
+                            // an orange ball, a blazing yellow
+                            // heart inside, and a flame tail
+                            // streaming out BEHIND it.
+                            commands
+                                .spawn((
+                                    LevelStuff,
+                                    Deadly,
+                                    Flickering,
+                                    BossShot { velocity },
+                                    Transform::from_translation(mouth)
+                                        // Turn the whole fireball so
+                                        // "forward" is its flight path —
+                                        // then the tail trails behind!
+                                        .with_rotation(Quat::from_rotation_arc(
+                                            Vec3::Z,
+                                            velocity.normalize(),
+                                        )),
+                                    Visibility::default(),
+                                ))
+                                .with_children(|fireball| {
+                                    // The orange ball of flame.
+                                    fireball.spawn((
+                                        Mesh3d(assets.fire_core_shape.clone()),
+                                        MeshMaterial3d(assets.fire_glow.clone()),
+                                        Transform::from_xyz(0.0, 0.0, 0.0),
+                                    ));
+                                    // The white-hot yellow heart.
+                                    fireball.spawn((
+                                        Mesh3d(assets.spark_shape.clone()),
+                                        MeshMaterial3d(assets.fire_hot_glow.clone()),
+                                        Transform::from_xyz(0.0, 0.0, 0.14)
+                                            .with_scale(Vec3::splat(1.6)),
+                                    ));
+                                    // The flame tail, pointing backward.
+                                    fireball.spawn((
+                                        Mesh3d(assets.fire_tail_shape.clone()),
+                                        MeshMaterial3d(assets.fire_glow.clone()),
+                                        Transform::from_xyz(0.0, 0.0, -0.5)
+                                            // A quarter turn tips the cone
+                                            // to point away from travel.
+                                            .with_rotation(Quat::from_rotation_x(
+                                                -std::f32::consts::FRAC_PI_2,
+                                            )),
+                                    ));
+                                });
                         }
                     }
                 }
@@ -1570,8 +1717,7 @@ fn boss_fight(
             };
             start_party(
                 &mut commands,
-                &mut meshes,
-                &mut materials,
+                &assets,
                 &sounds,
                 &font,
                 &mut party,
@@ -1693,8 +1839,7 @@ fn check_for_crash(
 
 fn check_for_finish(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    assets: Res<GameAssets>,
     sounds: Res<AssetServer>,
     font: Res<GameFont>,
     mut party: ResMut<Party>,
@@ -1710,8 +1855,7 @@ fn check_for_finish(
         if gate.translation.z >= 0.0 {
             start_party(
                 &mut commands,
-                &mut meshes,
-                &mut materials,
+                &assets,
                 &sounds,
                 &font,
                 &mut party,
@@ -1728,8 +1872,7 @@ fn check_for_finish(
 
 fn start_party(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    assets: &GameAssets,
     sounds: &AssetServer,
     font: &GameFont,
     party: &mut Party,
@@ -1769,10 +1912,6 @@ fn start_party(
     // We launch 60 glowing balls in a circle. For ball
     // number i, we turn i into an angle, then cos & sin
     // aim around the circle — that's how math draws circles!
-    // Fireworks in every paintbox color!
-    let firework_colors = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK];
-    let spark_shape = meshes.add(Sphere::new(0.12));
-
     for i in 0..60 {
         // Spread 60 sparks around a full circle
         // (a full circle is about 6.28 radians).
@@ -1781,8 +1920,6 @@ fn start_party(
         // Every 7th spark flies a bit faster, so the
         // burst looks fluffy instead of a perfect ring.
         let speed = 3.0 + ((i % 7) as f32) * 0.7;
-
-        let color = firework_colors[i % firework_colors.len()];
 
         commands.spawn((
             Firework {
@@ -1793,12 +1930,9 @@ fn start_party(
                 ),
                 life: 2.5,
             },
-            Mesh3d(spark_shape.clone()),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: color,
-                emissive: color.to_linear() * 3.0, // makes it GLOW!
-                ..default()
-            })),
+            Mesh3d(assets.spark_shape.clone()),
+            // Cycle through the paintbox glow colors.
+            MeshMaterial3d(assets.spark_glow[i % assets.spark_glow.len()].clone()),
             Transform::from_xyz(0.0, 2.0, 0.0),
         ));
     }
