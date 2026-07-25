@@ -1170,21 +1170,27 @@ fn bunny_jump(
 //  UP and flop forward when the bunny comes DOWN!
 // ======================================================
 
-fn flop_ears(bunnies: Query<&Bunny>, mut ears: Query<(&mut Transform, &Ear)>) {
+fn flop_ears(time: Res<Time>, bunnies: Query<&Bunny>, mut ears: Query<(&mut Transform, &Ear)>) {
     for bunny in &bunnies {
-        // MULTIPLYING MATH: up-speed × 0.07 turns a big
-        // speed (like 9) into a small tilt (like 0.63).
-        // "clamp" keeps the number between -0.7 and 0.7,
-        // so the ears never spin all the way around!
-        let flop = (bunny.up_speed * 0.07).clamp(-0.7, 0.7);
+        // MULTIPLYING MATH: up-speed × 0.13 turns a big
+        // speed (like 9) into a big floppy tilt (like 1.2).
+        //
+        // The clamp starts at ZERO — ears only ever flop
+        // OUTWARD, never inward, so they can never cross
+        // through each other in the middle!
+        let flop = (bunny.up_speed * 0.13).clamp(0.0, 1.2);
 
         for (mut hinge, ear) in &mut ears {
-            // Turn each ear's hinge SIDEWAYS — and multiply
-            // by the ear's side (-1 or +1) so the left ear
-            // swings left while the right ear swings right.
-            // Jumping up: ears flop apart! Falling: they
-            // sweep back together. Flop flop!
-            hinge.rotation = Quat::from_rotation_z(ear.side * -flop);
+            // Where each ear WANTS to be: swung sideways,
+            // left ear left, right ear right (that's what
+            // multiplying by side = -1 or +1 does).
+            let target = Quat::from_rotation_z(ear.side * -flop);
+
+            // "slerp" = slide only PART of the way there
+            // each frame. That makes the ears lag behind
+            // and settle gently — floppy, not snappy!
+            let how_fast = (10.0 * time.delta_secs()).min(1.0);
+            hinge.rotation = hinge.rotation.slerp(target, how_fast);
         }
     }
 }
