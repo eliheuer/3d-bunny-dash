@@ -974,7 +974,9 @@ fn start_playing(
         Text::new("Level 1"),
         TextFont {
             font: font.0.clone(),
-            font_size: 40.0,
+            // The same size as the score, so both corner
+            // labels sit on the same line across the top.
+            font_size: 48.0,
             ..default()
         },
         TextColor(Color::WHITE),
