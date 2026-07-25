@@ -357,17 +357,29 @@ impl Material for LavaLampMaterial {
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: "3D Bunny Dash".to_string(),
-            // On the web, draw into the web page's canvas
-            // and stretch to fill its box.
-            canvas: Some("#bunny-canvas".to_string()),
-            fit_canvas_to_parent: true,
-            ..default()
-        }),
-        ..default()
-    }));
+    app.add_plugins(
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "3D Bunny Dash".to_string(),
+                    // On the web, draw into the web page's canvas
+                    // and stretch to fill its box.
+                    canvas: Some("#bunny-canvas".to_string()),
+                    fit_canvas_to_parent: true,
+                    ..default()
+                }),
+                ..default()
+            })
+            .set(AssetPlugin {
+                // On the web, fetch sounds/fonts/shaders from
+                // the game's folder on the site — an absolute
+                // address, so it works no matter which page
+                // URL the browser shows.
+                #[cfg(target_arch = "wasm32")]
+                file_path: "/games/3d-bunny-dash/assets".to_string(),
+                ..default()
+            }),
+    );
 
     // Load our fonts before ANYTHING runs, so every
     // screen can count on them being ready.
