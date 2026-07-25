@@ -43,7 +43,7 @@ pub fn finish_line(level: usize) -> f32 {
         1 => -106.0,
         2 => -110.0,
         3 => -122.0,
-        5 => -100.0,
+        5 => -112.0,
         _ => -108.0,
     }
 }
@@ -135,33 +135,45 @@ pub fn level_pieces(level: usize) -> Vec<(Piece, f32)> {
         // Bridges with GAPS — hop from one to the next,
         // then climb a giant staircase into the sky!
         5 => vec![
-            // Two low bridges with a gap between them.
+            // A nice LONG low bridge — plenty of room to land!
             (Piece::Cube, -18.0),
             (Piece::Cube, -19.2),
             (Piece::Cube, -20.4),
-            (Piece::Cube, -26.0),
-            (Piece::Cube, -27.2),
-            (Piece::Cube, -28.4),
-            // ...climbing to a tall ridge at the end!
-            (Piece::TallCube, -29.6),
-            (Piece::TallCube, -30.8),
-            (Piece::Spike, -39.0),
+            (Piece::Cube, -21.6),
+            (Piece::Cube, -22.8),
+            // A gap... then another long bridge...
+            (Piece::Cube, -28.0),
+            (Piece::Cube, -29.2),
+            (Piece::Cube, -30.4),
+            (Piece::Cube, -31.6),
+            // ...climbing to a long tall ridge at the end!
+            (Piece::TallCube, -32.8),
+            (Piece::TallCube, -34.0),
+            (Piece::TallCube, -35.2),
+            (Piece::Spike, -44.0),
             // THE GIANT STAIRCASE: low, tall, TRIPLE!
+            // Every step is long, so take your time.
             // Up here the bunny is really, really high!
-            (Piece::Cube, -46.0),
-            (Piece::Cube, -47.2),
-            (Piece::TallCube, -48.4),
-            (Piece::TallCube, -49.6),
-            (Piece::TripleCube, -50.8),
-            (Piece::TripleCube, -52.0),
+            (Piece::Cube, -51.0),
+            (Piece::Cube, -52.2),
+            (Piece::Cube, -53.4),
+            (Piece::Cube, -54.6),
+            (Piece::TallCube, -55.8),
+            (Piece::TallCube, -57.0),
+            (Piece::TallCube, -58.2),
+            (Piece::TripleCube, -59.4),
+            (Piece::TripleCube, -60.6),
+            (Piece::TripleCube, -61.8),
+            (Piece::TripleCube, -63.0),
             // The big drop! Then double spikes.
-            (Piece::Spike, -61.0),
-            (Piece::Spike, -62.2),
-            (Piece::Cube, -69.0),
-            (Piece::Cube, -70.2),
-            (Piece::Cube, -71.4),
-            (Piece::SkySpike, -79.0),
-            (Piece::Spike, -86.0),
+            (Piece::Spike, -72.0),
+            (Piece::Spike, -73.2),
+            (Piece::Cube, -80.0),
+            (Piece::Cube, -81.2),
+            (Piece::Cube, -82.4),
+            (Piece::Cube, -83.6),
+            (Piece::SkySpike, -91.0),
+            (Piece::Spike, -98.0),
         ],
 
         // ---------- LEVEL 6: The Tricky Tower ----------
