@@ -26,9 +26,10 @@ use bevy::prelude::*;
 /// (4 and 7 are boss fights — no pieces to place!)
 const EDITABLE_LEVELS: [usize; 5] = [1, 2, 3, 5, 6];
 
-/// The cursor hops along the road in steps this big —
-/// exactly one cube wide, so cubes line up perfectly!
-const GRID_STEP: f32 = 1.2;
+/// The cursor hops along the road in steps this big.
+/// Whole-number steps mean every piece lands on a nice
+/// round spot — 18, 19, 20 — and nothing gets crooked!
+const GRID_STEP: f32 = 1.0;
 
 /// What the editor remembers.
 #[derive(Resource)]
@@ -214,18 +215,19 @@ fn editor_keys(
     mut next_screen: ResMut<NextState<Screen>>,
 ) {
     // ---- Gliding along the road (the arrow keys) ----
-    if keyboard.just_pressed(KeyCode::ArrowRight) {
+    // Right or Up moves farther down the road,
+    // Left or Down brings it back — whichever feels right!
+    if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::ArrowUp) {
         editor.cursor += GRID_STEP;
     }
-    if keyboard.just_pressed(KeyCode::ArrowLeft) {
+    if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::ArrowDown) {
         editor.cursor -= GRID_STEP;
     }
     // Keep the cursor on the road (between 6 and 240)...
     editor.cursor = editor.cursor.clamp(6.0, 240.0);
-    // ...and round it to one decimal place, so adding
-    // 1.2 over and over never leaves messy crumbs like
-    // 22.800003. (× 10, round, ÷ 10 → 22.8 exactly!)
-    editor.cursor = (editor.cursor * 10.0).round() / 10.0;
+    // ...and snap it to a whole number, so every piece
+    // lands exactly on the grid: 18, 19, 20 — never 19.2!
+    editor.cursor = editor.cursor.round();
 
     // ---- Picking which level to edit (the L key) ----
     // Pressing L hops to the next level in the list, and
@@ -372,7 +374,7 @@ fn update_status(
     let level = book.get(editor.level);
     for mut text in &mut words {
         *text = Text::new(format!(
-            "EDITING  Level {}: {}     spot {:.1}     {} pieces     {}",
+            "EDITING  Level {}: {}     spot {:.0}     {} pieces     {}",
             editor.level,
             level.name,
             editor.cursor,
