@@ -210,7 +210,7 @@ fn open_editor(
         Text::new(""),
         TextFont {
             font: font.0.clone(),
-            font_size: 34.0,
+            font_size: 40.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -237,11 +237,11 @@ fn open_editor(
         ("6", " sky spike    "),
         ("7", " bad guy\n"),
         ("arrows", " move      "),
-        ("L", " change level      "),
-        ("X", " delete      "),
-        ("P", " playtest      "),
-        ("S", " save      "),
-        ("Esc", " menu"),
+        ("l", " change level      "),
+        ("x", " delete      "),
+        ("p", " playtest      "),
+        ("s", " save      "),
+        ("esc", " menu"),
     ];
     commands
         .spawn((
@@ -249,7 +249,7 @@ fn open_editor(
             Text::new(""),
             TextFont {
                 font: font.0.clone(),
-                font_size: 26.0,
+                font_size: 30.0,
                 ..default()
             },
             TextLayout::new_with_justify(Justify::Center),
@@ -268,7 +268,7 @@ fn open_editor(
                     TextColor(crate::YELLOW),
                     TextFont {
                         font: font.0.clone(),
-                        font_size: 26.0,
+                        font_size: 30.0,
                         ..default()
                     },
                 ));
@@ -278,7 +278,7 @@ fn open_editor(
                     TextColor(Color::WHITE),
                     TextFont {
                         font: font.0.clone(),
-                        font_size: 26.0,
+                        font_size: 30.0,
                         ..default()
                     },
                 ));
