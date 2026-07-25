@@ -57,6 +57,27 @@ struct CursorMarker;
 #[derive(Component)]
 struct StatusWords;
 
+/// Snap every piece in a level onto the whole-number
+/// grid, and throw away doubles that land on the same
+/// spot. The editor runs this on any level it opens, so
+/// the cursor and the pieces ALWAYS agree on the grid!
+fn snap_level_to_grid(level: &mut crate::levels::LevelData) {
+    for (_, z) in &mut level.pieces {
+        *z = z.round();
+    }
+    // Sweep out doubles: keep a piece only if no EARLIER
+    // piece already sits on its exact spot.
+    let mut seen_spots: Vec<f32> = Vec::new();
+    level.pieces.retain(|(_, z)| {
+        if seen_spots.contains(z) {
+            false // a piece is already here — drop this one
+        } else {
+            seen_spots.push(*z);
+            true
+        }
+    });
+}
+
 pub struct EditorPlugin;
 
 impl Plugin for EditorPlugin {
@@ -90,9 +111,46 @@ fn open_editor(
     mut materials: ResMut<Assets<StandardMaterial>>,
     font: Res<ReadingFont>,
     mut editor: ResMut<Editor>,
+    mut book: ResMut<LevelBook>,
 ) {
     editor.playtesting = false;
     editor.needs_redraw = true;
+
+    // Lock the level we're opening onto the grid.
+    snap_level_to_grid(book.get_mut(editor.level));
+
+    // ---- THE GRID OVERLAY ----
+    // A faint line across the road at every whole-number
+    // spot, so you can SEE the grid you're snapping to.
+    // Every 5th line is yellow, to help you count!
+    let faint_line = materials.add(StandardMaterial {
+        base_color: Color::srgba(1.0, 1.0, 1.0, 0.25),
+        alpha_mode: AlphaMode::Blend, // see-through!
+        unlit: true,                  // ignore shadows and sun
+        ..default()
+    });
+    let count_line = materials.add(StandardMaterial {
+        base_color: Color::srgba(1.0, 0.85, 0.3, 0.6),
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        ..default()
+    });
+    let line_shape = meshes.add(Cuboid::new(8.0, 0.02, 0.06));
+
+    for spot in 6..=240 {
+        // "% 5" — is this spot a multiple of 5?
+        let paint = if spot % 5 == 0 {
+            count_line.clone()
+        } else {
+            faint_line.clone()
+        };
+        commands.spawn((
+            EditorStuff,
+            Mesh3d(line_shape.clone()),
+            MeshMaterial3d(paint),
+            Transform::from_xyz(0.0, 0.02, -(spot as f32)),
+        ));
+    }
 
     // The cursor: a green WIREFRAME box, like in 3D
     // modeling programs! A box has 12 edges — 4 standing
@@ -281,6 +339,8 @@ fn editor_keys(
             }
         }
         editor.level = next;
+        // Lock the newly opened level onto the grid too.
+        snap_level_to_grid(book.get_mut(next));
         editor.needs_redraw = true;
     }
 

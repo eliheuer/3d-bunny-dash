@@ -165,8 +165,12 @@ struct FinishLine;
 struct Bouncing;
 
 /// The sticker for the bunny's ears, so they can flop!
+/// Each ear knows which side it's on: -1 is the left
+/// ear, +1 is the right ear, so they flop APART.
 #[derive(Component)]
-struct Ear;
+struct Ear {
+    side: f32,
+}
 
 /// The one and only camera (the background is its child).
 #[derive(Component)]
@@ -471,19 +475,30 @@ pub fn spawn_bunny_visual(
                 MeshMaterial3d(eye_dark.clone()),
                 Transform::from_xyz(0.13, 0.63, -0.6),
             ));
-            // Two tall ears that can FLOP when we jump!
-            bunny.spawn((
-                Ear,
-                Mesh3d(meshes.add(Capsule3d::new(0.08, 0.5))),
-                MeshMaterial3d(light_pink.clone()),
-                Transform::from_xyz(-0.15, 1.1, -0.3),
-            ));
-            bunny.spawn((
-                Ear,
-                Mesh3d(meshes.add(Capsule3d::new(0.08, 0.5))),
-                MeshMaterial3d(light_pink.clone()),
-                Transform::from_xyz(0.15, 1.1, -0.3),
-            ));
+            // Two tall ears that FLOP APART when we jump!
+            // Each ear is really TWO pieces: an invisible
+            // hinge planted in the head, and the ear shape
+            // hanging above it. When we turn the hinge,
+            // the whole ear swings from its bottom — just
+            // like a real ear stuck into a real head!
+            for side in [-1.0, 1.0] {
+                bunny
+                    .spawn((
+                        Ear { side },
+                        // The hinge sits right at the head top.
+                        Transform::from_xyz(side * 0.15, 0.8, -0.3),
+                        Visibility::default(),
+                    ))
+                    .with_children(|ear| {
+                        // The ear shape, standing on the hinge
+                        // (its middle is 0.33 above the bottom).
+                        ear.spawn((
+                            Mesh3d(meshes.add(Capsule3d::new(0.08, 0.5))),
+                            MeshMaterial3d(light_pink.clone()),
+                            Transform::from_xyz(0.0, 0.33, 0.0),
+                        ));
+                    });
+            }
             // A fluffy white tail on the back
             bunny.spawn((
                 Mesh3d(meshes.add(Sphere::new(0.18))),
@@ -655,14 +670,14 @@ pub fn spawn_bat_visual(
             bat.spawn((
                 Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
                 MeshMaterial3d(bat_dark.clone()),
-                Transform::from_xyz(-1.6, 0.3, 0.0)
-                    .with_rotation(Quat::from_rotation_z(0.4)),
+                Transform::from_xyz(-1.5, -0.1, 0.0)
+                    .with_rotation(Quat::from_rotation_z(0.25)),
             ));
             bat.spawn((
                 Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
                 MeshMaterial3d(bat_dark.clone()),
-                Transform::from_xyz(1.6, 0.3, 0.0)
-                    .with_rotation(Quat::from_rotation_z(-0.4)),
+                Transform::from_xyz(1.5, -0.1, 0.0)
+                    .with_rotation(Quat::from_rotation_z(-0.25)),
             ));
             // Two pointy ears on top.
             bat.spawn((
@@ -885,7 +900,7 @@ fn start_playing(
         Text::new("Level 1"),
         TextFont {
             font: font.0.clone(),
-            font_size: 48.0,
+            font_size: 40.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -1126,16 +1141,21 @@ fn bunny_jump(
 //  UP and flop forward when the bunny comes DOWN!
 // ======================================================
 
-fn flop_ears(bunnies: Query<&Bunny>, mut ears: Query<&mut Transform, With<Ear>>) {
+fn flop_ears(bunnies: Query<&Bunny>, mut ears: Query<(&mut Transform, &Ear)>) {
     for bunny in &bunnies {
-        // MULTIPLYING MATH: up-speed × 0.08 turns a big
-        // speed (like 9) into a small tilt (like 0.72).
-        // "clamp" keeps the number between -0.9 and 0.9,
+        // MULTIPLYING MATH: up-speed × 0.07 turns a big
+        // speed (like 9) into a small tilt (like 0.63).
+        // "clamp" keeps the number between -0.7 and 0.7,
         // so the ears never spin all the way around!
-        let tilt = (bunny.up_speed * 0.08).clamp(-0.9, 0.9);
+        let flop = (bunny.up_speed * 0.07).clamp(-0.7, 0.7);
 
-        for mut ear in &mut ears {
-            ear.rotation = Quat::from_rotation_x(tilt);
+        for (mut hinge, ear) in &mut ears {
+            // Turn each ear's hinge SIDEWAYS — and multiply
+            // by the ear's side (-1 or +1) so the left ear
+            // swings left while the right ear swings right.
+            // Jumping up: ears flop apart! Falling: they
+            // sweep back together. Flop flop!
+            hinge.rotation = Quat::from_rotation_z(ear.side * -flop);
         }
     }
 }
@@ -1614,7 +1634,6 @@ fn update_words(
     game: Res<Game>,
     book: Res<LevelBook>,
     mut score: ResMut<Score>,
-    bosses: Query<&Boss>,
     mut score_text: Query<&mut Text, (With<ScoreText>, Without<LevelText>)>,
     mut level_text: Query<&mut Text, (With<LevelText>, Without<ScoreText>)>,
 ) {
@@ -1634,13 +1653,6 @@ fn update_words(
         // one true name tag — "Level 4: Sky Stairs" or
         // "Boss 1: Rotten Tomato" — so the counting always
         // matches everywhere!
-        if let Some(boss) = bosses.iter().next() {
-            // On a boss stage, show its hearts too.
-            // "repeat" copies the heart once per health point.
-            let hearts = "<3 ".repeat(boss.hearts.max(0) as usize);
-            *t = Text::new(format!("{}  {hearts}", book.label(game.level)));
-        } else {
-            *t = Text::new(book.label(game.level));
-        }
+        *t = Text::new(book.label(game.level));
     }
 }

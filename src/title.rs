@@ -13,7 +13,6 @@ use crate::{
     Settings,
 };
 use bevy::prelude::*;
-use std::f32::consts::FRAC_PI_2;
 
 /// The sticker for everything on the title screen.
 #[derive(Component)]
@@ -51,103 +50,60 @@ fn open_title(
     font: Res<GameFont>,
     mut cameras: Query<&mut Transform, With<MainCamera>>,
 ) {
-    // Point the camera straight at the stage.
+    // The title screen IS a little level! Same camera as
+    // the game, the bunny on the road, pieces up ahead —
+    // and all three bosses waiting at the end of it.
     for mut camera in &mut cameras {
         *camera =
-            Transform::from_xyz(0.0, 2.6, 12.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y);
+            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y);
     }
 
-    // ----- The bunny, on the left -----
-    // Turned PARTWAY toward the villain (a full quarter
-    // turn is 1.57, so 0.9 is a bit more than half a
-    // quarter turn) — that way we can still see its face!
+    // ----- The bunny, right where it stands in the game -----
     let bunny = spawn_bunny_visual(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(-3.6, 1.0, 2.0)
-            .with_scale(Vec3::splat(1.5))
-            .with_rotation(Quat::from_rotation_y(-0.9)),
+        Transform::from_xyz(0.0, 0.5, 0.0),
     );
     commands.entity(bunny).insert(TitleStuff);
 
-    // ----- ALL THREE BOSSES, lined up on the right! -----
-    // The Rotten Tomato, front and center...
+    // ----- A little stretch of level up the road -----
+    // (These are REAL level pieces, built by the same
+    // spawn_piece the game and the editor use!)
+    for (piece, spot) in [
+        (crate::Piece::Spike, -5.0),
+        (crate::Piece::Cube, -8.0),
+        (crate::Piece::TallCube, -9.0),
+        (crate::Piece::SkySpike, -12.0),
+        (crate::Piece::BadGuy, -15.0),
+    ] {
+        crate::spawn_piece(&mut commands, &mut meshes, &mut materials, piece, spot);
+    }
+
+    // ----- ALL THREE BOSSES at the end of the road! -----
     let tomato = spawn_tomato_visual(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(2.4, 1.3, 3.0).with_scale(Vec3::splat(0.7)),
+        Transform::from_xyz(-2.6, 2.0, -20.0).with_scale(Vec3::splat(0.8)),
     );
     commands.entity(tomato).insert(TitleStuff);
 
-    // ...the Cursed Thorn behind him...
     let plant = spawn_thorn_plant(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(4.8, 0.0, 0.0),
+        Transform::from_xyz(2.6, 0.0, -21.0),
     );
     commands.entity(plant).insert(TitleStuff);
 
-    // ...and BAD BAT swooping overhead!
     let bat = spawn_bat_visual(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(2.2, 5.2, -1.0).with_scale(Vec3::splat(0.9)),
+        Transform::from_xyz(0.0, 5.0, -24.0),
     );
     commands.entity(bat).insert(TitleStuff);
-
-    // ----- A thorn frozen mid-flight at the bunny! -----
-    commands.spawn((
-        TitleStuff,
-        Mesh3d(meshes.add(Cone::new(0.22, 0.8))),
-        MeshMaterial3d(materials.add(Color::srgb(0.35, 0.4, 0.25))),
-        // Pointing left, at the bunny (a quarter turn).
-        Transform::from_xyz(0.4, 2.9, 1.5).with_rotation(Quat::from_rotation_z(FRAC_PI_2)),
-    ));
-
-    // ----- Shapes decorating the bottom of the stage -----
-    // Straight out of the paintbox, same as in the game.
-    let orange = materials.add(crate::ORANGE);
-    let purple = materials.add(crate::PURPLE);
-    let blue = materials.add(crate::BLUE);
-    let red = materials.add(crate::RED);
-
-    commands.spawn((
-        TitleStuff,
-        Mesh3d(meshes.add(Cone::new(0.6, 1.4))),
-        MeshMaterial3d(orange.clone()),
-        Transform::from_xyz(-5.5, 0.7, 4.0),
-    ));
-    commands.spawn((
-        TitleStuff,
-        Mesh3d(meshes.add(Cuboid::new(1.2, 1.2, 1.2))),
-        MeshMaterial3d(purple.clone()),
-        Transform::from_xyz(-1.8, 0.6, 4.5),
-    ));
-    commands.spawn((
-        TitleStuff,
-        Mesh3d(meshes.add(Sphere::new(0.55))),
-        MeshMaterial3d(red.clone()),
-        Transform::from_xyz(0.2, 0.55, 4.8),
-    ));
-    commands.spawn((
-        TitleStuff,
-        // A tall platform cube on the far left.
-        Mesh3d(meshes.add(Cuboid::new(1.2, 2.4, 1.2))),
-        MeshMaterial3d(purple.clone()),
-        Transform::from_xyz(-6.4, 1.2, 2.5),
-    ));
-    commands.spawn((
-        TitleStuff,
-        // An upside-down sky spike, floating decoratively.
-        Mesh3d(meshes.add(Cone::new(0.6, 1.4))),
-        MeshMaterial3d(blue.clone()),
-        Transform::from_xyz(-4.8, 4.8, 0.0)
-            .with_rotation(Quat::from_rotation_x(std::f32::consts::PI)),
-    ));
 
     // ----- The title words! -----
     commands.spawn((
@@ -186,7 +142,10 @@ fn open_title(
     ));
 }
 
-fn close_title(mut commands: Commands, stuff: Query<Entity, With<TitleStuff>>) {
+fn close_title(
+    mut commands: Commands,
+    stuff: Query<Entity, Or<(With<TitleStuff>, With<crate::LevelStuff>)>>,
+) {
     for thing in &stuff {
         commands.entity(thing).despawn();
     }
