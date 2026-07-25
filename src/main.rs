@@ -53,7 +53,7 @@ const STARTING_LEVEL: usize = 1;
 const JUMP_POWER: f32 = 9.0;
 
 /// Gravity pulls the bunny down. On Earth gravity is 9.8!
-const GRAVITY: f32 = 22.0;
+pub const GRAVITY: f32 = 22.0;
 
 /// How close a spike or bad guy must be to hurt the bunny.
 const CRASH_DISTANCE: f32 = 1.0;
@@ -125,10 +125,10 @@ pub enum Piece {
 
 /// The sticker that says "I am the bunny!"
 #[derive(Component)]
-struct Bunny {
+pub struct Bunny {
     /// How fast the bunny is moving UP right now.
     /// A minus number means moving DOWN.
-    up_speed: f32,
+    pub up_speed: f32,
 }
 
 /// EVERYTHING that belongs to the current level wears
@@ -202,6 +202,15 @@ struct Boss {
 struct Wing {
     side: f32,
 }
+
+/// A sticker for the Rotten Tomato's eyes, so he BLINKS.
+#[derive(Component)]
+struct TomatoEye;
+
+/// A sticker for the Cursed Thorn, so it SWAYS like a
+/// plant in a spooky breeze.
+#[derive(Component)]
+struct Swaying;
 
 /// Something a boss threw at you — a ball or a thorn!
 #[derive(Component)]
@@ -346,8 +355,13 @@ fn main() {
         })
         // Run ONCE when the game starts:
         .add_systems(Startup, build_the_world)
-        // Bad Bat flaps on EVERY screen — even the title!
-        .add_systems(Update, flap_wings)
+        // The little life-giving animations run on EVERY
+        // screen — the bat flaps, the tomato blinks, the
+        // thorn sways, and ears flop on the title too!
+        .add_systems(
+            Update,
+            (flap_wings, blink_tomato_eyes, sway_plants, flop_ears),
+        )
         // Run when we START and STOP playing:
         .add_systems(OnEnter(Screen::Playing), start_playing)
         .add_systems(OnExit(Screen::Playing), stop_playing)
@@ -358,7 +372,6 @@ fn main() {
             (
                 switch_level,
                 bunny_jump,
-                flop_ears,
                 move_level,
                 spin_finish_line,
                 bounce_bad_guys,
@@ -572,7 +585,9 @@ pub fn spawn_thorn_plant(
     let white = materials.add(WHITE);
 
     commands
-        .spawn((place, Visibility::default()))
+        // The Swaying sticker makes the whole plant rock
+        // gently side to side, like wind in a spooky garden.
+        .spawn((Swaying, place, Visibility::default()))
         .with_children(|plant| {
             // The flower pot.
             plant.spawn((
@@ -673,13 +688,16 @@ pub fn spawn_tomato_visual(
                             * Quat::from_rotation_x(angle.sin() * 1.2)),
                 ));
             }
-            // Giant angry eyes!
+            // Giant angry eyes — with the TomatoEye
+            // sticker, so he can BLINK at you!
             tomato.spawn((
+                TomatoEye,
                 Mesh3d(meshes.add(Sphere::new(0.3))),
                 MeshMaterial3d(white.clone()),
                 Transform::from_xyz(-0.5, 0.4, 1.15),
             ));
             tomato.spawn((
+                TomatoEye,
                 Mesh3d(meshes.add(Sphere::new(0.3))),
                 MeshMaterial3d(white.clone()),
                 Transform::from_xyz(0.5, 0.4, 1.15),
@@ -712,17 +730,29 @@ pub fn spawn_bat_visual(
                 MeshMaterial3d(bat_dark.clone()),
                 Transform::from_xyz(0.0, 0.0, 0.0),
             ));
-            // Two BIG flat wings, one each side, tilted up.
-            // (A wing is just a very squashed box!) They
-            // wear the Wing sticker so they can FLAP.
+            // Two BIG flat wings — built like the bunny's
+            // ears! Each wing is an invisible HINGE where
+            // the wing meets the body, with the wing shape
+            // reaching outward from it. Turning the hinge
+            // swings the whole wing from its root, like a
+            // real shoulder!
             for side in [-1.0f32, 1.0] {
                 bat.spawn((
                     Wing { side },
-                    Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
-                    MeshMaterial3d(bat_dark.clone()),
-                    Transform::from_xyz(side * 1.5, -0.1, 0.0)
-                        .with_rotation(Quat::from_rotation_z(side * -0.25)),
-                ));
+                    // The hinge, tucked against the body.
+                    Transform::from_xyz(side * 0.7, 0.1, 0.0),
+                    Visibility::default(),
+                ))
+                .with_children(|wing| {
+                    // The wing shape, reaching outward —
+                    // its middle is half its width (1.1)
+                    // away from the hinge.
+                    wing.spawn((
+                        Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
+                        MeshMaterial3d(bat_dark.clone()),
+                        Transform::from_xyz(side * 1.1, 0.0, 0.0),
+                    ));
+                });
             }
             // Two pointy ears on top.
             bat.spawn((
@@ -1262,6 +1292,38 @@ fn flap_wings(time: Res<Time>, mut wings: Query<(&mut Transform, &Wing)>) {
         // Each wing tilts from its resting angle (0.25),
         // mirrored by its side so they beat like real wings.
         wing_pose.rotation = Quat::from_rotation_z(wing.side * -(0.25 + flap));
+    }
+}
+
+// ======================================================
+//  BLINKING — the Rotten Tomato's eyes squish shut for
+//  a moment every few seconds. He's watching you...
+// ======================================================
+
+fn blink_tomato_eyes(time: Res<Time>, mut eyes: Query<&mut Transform, With<TomatoEye>>) {
+    // "% 3.4" chops time into repeating 3.4-second loops.
+    // For the first 0.18 seconds of each loop, the eyes
+    // squash nearly flat — that's the blink!
+    let loop_time = time.elapsed_secs() % 3.4;
+    let eye_height = if loop_time < 0.18 { 0.1 } else { 1.0 };
+
+    for mut eye in &mut eyes {
+        // Squashing = shrinking only the UP-Down size.
+        eye.scale.y = eye_height;
+    }
+}
+
+// ======================================================
+//  SWAYING — the Cursed Thorn rocks side to side like
+//  a plant in a spooky breeze.
+// ======================================================
+
+fn sway_plants(time: Res<Time>, mut plants: Query<&mut Transform, With<Swaying>>) {
+    for mut plant in &mut plants {
+        // A slow gentle wave, tipping just 0.07 radians
+        // each way — small numbers look alive; big
+        // numbers look like an earthquake!
+        plant.rotation = Quat::from_rotation_z((time.elapsed_secs() * 0.9).sin() * 0.07);
     }
 }
 

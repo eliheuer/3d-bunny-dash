@@ -18,6 +18,11 @@ use bevy::prelude::*;
 #[derive(Component)]
 struct TitleStuff;
 
+/// The bunny on the title screen, who does happy
+/// little hops while it waits for you to press play.
+#[derive(Component)]
+struct TitleBunny;
+
 /// The sticker for everything on the settings screen.
 #[derive(Component)]
 struct SettingsStuff;
@@ -32,7 +37,10 @@ impl Plugin for TitlePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(Screen::Title), open_title)
             .add_systems(OnExit(Screen::Title), close_title)
-            .add_systems(Update, title_keys.run_if(in_state(Screen::Title)))
+            .add_systems(
+                Update,
+                (title_keys, title_bunny_hops).run_if(in_state(Screen::Title)),
+            )
             .add_systems(OnEnter(Screen::Settings), open_settings)
             .add_systems(OnExit(Screen::Settings), close_settings)
             .add_systems(Update, settings_keys.run_if(in_state(Screen::Settings)));
@@ -65,7 +73,13 @@ fn open_title(
         &mut materials,
         Transform::from_xyz(0.0, 0.5, 0.0),
     );
-    commands.entity(bunny).insert(TitleStuff);
+    commands.entity(bunny).insert((
+        TitleStuff,
+        TitleBunny,
+        // A real Bunny sticker, so the ear-flop system
+        // sees its hops and flops the ears!
+        crate::Bunny { up_speed: 0.0 },
+    ));
 
     // ----- A little stretch of level up the road -----
     // (These are REAL level pieces, built by the same
@@ -178,6 +192,36 @@ fn close_title(
 ) {
     for thing in &stuff {
         commands.entity(thing).despawn();
+    }
+}
+
+/// The title bunny does a happy little hop every couple
+/// of seconds — the same gravity math as the real game,
+/// just with a gentler jump!
+fn title_bunny_hops(
+    time: Res<Time>,
+    mut wait: Local<f32>,
+    mut bunnies: Query<(&mut Transform, &mut crate::Bunny), With<TitleBunny>>,
+) {
+    // "Local" is a little scratch number this system
+    // keeps to itself between frames — our hop timer.
+    *wait += time.delta_secs();
+
+    for (mut position, mut bunny) in &mut bunnies {
+        // Every 2.5 seconds, if we're on the ground: HOP!
+        if *wait > 2.5 && position.translation.y <= 0.5 {
+            bunny.up_speed = 5.0; // a gentle hop, not a full jump
+            *wait = 0.0;
+        }
+
+        // The very same gravity math as the real game.
+        bunny.up_speed -= crate::GRAVITY * time.delta_secs();
+        position.translation.y += bunny.up_speed * time.delta_secs();
+
+        if position.translation.y < 0.5 {
+            position.translation.y = 0.5;
+            bunny.up_speed = 0.0;
+        }
     }
 }
 
