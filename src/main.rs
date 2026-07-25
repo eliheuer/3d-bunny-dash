@@ -360,7 +360,9 @@ fn main() {
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
             title: "3D Bunny Dash".to_string(),
-            // On the web, stretch to fill the page's box.
+            // On the web, draw into the web page's canvas
+            // and stretch to fill its box.
+            canvas: Some("#bunny-canvas".to_string()),
             fit_canvas_to_parent: true,
             ..default()
         }),
