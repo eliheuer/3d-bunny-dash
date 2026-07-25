@@ -132,27 +132,34 @@ fn open_editor(
     });
     let line_shape = meshes.add(Cuboid::new(8.0, 0.02, 0.06));
 
-    for spot in 6..=240 {
+    // The lines sit at the halfway points (5.5, 6.5, 7.5…)
+    // so they mark the EDGES between cells. That way every
+    // whole-number spot is the exact CENTER of its own
+    // little cell, with a line on each side of it.
+    for boundary in 6..=241 {
         commands.spawn((
             EditorStuff,
             Mesh3d(line_shape.clone()),
             MeshMaterial3d(grid_green.clone()),
-            Transform::from_xyz(0.0, 0.02, -(spot as f32)),
+            Transform::from_xyz(0.0, 0.02, -(boundary as f32 - 0.5)),
         ));
     }
 
     // The cursor: a green WIREFRAME box, like in 3D
-    // modeling programs! A box has 12 edges — 4 standing
-    // up, 4 across the top, 4 across the bottom — and we
-    // draw each edge as a very skinny glowing green stick.
+    // modeling programs! It is EXACTLY one grid cell wide
+    // (1.0), so its edges land right on the grid lines.
+    // A box has 12 edges — 4 standing up, 4 across the
+    // top, 4 across the bottom — and we draw each edge
+    // as a very skinny glowing green stick.
     let green_glow = materials.add(StandardMaterial {
         base_color: Color::srgb(0.2, 1.0, 0.3),
         emissive: LinearRgba::new(0.4, 3.0, 0.6, 1.0), // GLOW!
         ..default()
     });
-    // The box is 1.3 wide and 5.0 tall, so its edges sit
-    // half of that from the middle: 0.65 out, 2.5 up/down.
-    let w = 0.65; // halfway across
+    // The box is 1.0 wide (one cell!) and 5.0 tall, so its
+    // edges sit half of that from the middle: 0.5 out,
+    // 2.5 up and down.
+    let w = 0.5; // halfway across — right on the grid line!
     let h = 2.5; // halfway up
     let t = 0.04; // how skinny each stick is
 
