@@ -40,6 +40,13 @@ mod levels;
 //  NUMBERS THAT CONTROL THE GAME  (try changing these!)
 // ======================================================
 
+/// ~~~ SECRET CHEAT CODE ~~~
+/// Which level the game starts on! Change this to jump
+/// straight to any level (1 to 7) — great for practicing
+/// a tricky level or visiting a boss. Put it back to 1
+/// when you want to play the whole adventure!
+const STARTING_LEVEL: usize = 1;
+
 /// How strong the bunny's jump is.
 const JUMP_POWER: f32 = 9.0;
 
@@ -221,8 +228,9 @@ fn main() {
         .add_plugins(MaterialPlugin::<LavaLampMaterial>::default())
         .insert_resource(Score { points: 0.0 })
         .insert_resource(Game {
-            level: 1,
-            switch_to: Some(1), // build level 1 right away!
+            level: STARTING_LEVEL,
+            // Build the starting level right away!
+            switch_to: Some(STARTING_LEVEL),
         })
         .insert_resource(Party {
             happening: false,

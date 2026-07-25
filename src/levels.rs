@@ -44,7 +44,7 @@ pub fn finish_line(level: usize) -> f32 {
         2 => -110.0,
         3 => -122.0,
         5 => -112.0,
-        _ => -108.0,
+        _ => -118.0,
     }
 }
 
@@ -182,31 +182,39 @@ pub fn level_pieces(level: usize) -> Vec<(Piece, f32)> {
         // a gap. Miss a jump and you hit the SIDE. Careful!
         6 => vec![
             (Piece::Spike, -18.0),
-            // Low bridge...
+            // A long low bridge — land, relax, get ready...
             (Piece::Cube, -25.0),
             (Piece::Cube, -26.2),
             (Piece::Cube, -27.4),
-            // ...gap, then jump UP onto the tall bridge...
-            (Piece::TallCube, -33.0),
-            (Piece::TallCube, -34.2),
-            (Piece::TallCube, -35.4),
+            (Piece::Cube, -28.6),
+            (Piece::Cube, -29.8),
+            // ...gap, then jump UP onto a long tall bridge...
+            (Piece::TallCube, -35.0),
+            (Piece::TallCube, -36.2),
+            (Piece::TallCube, -37.4),
+            (Piece::TallCube, -38.6),
+            (Piece::TallCube, -39.8),
             // ...gap, then UP again onto the TRIPLE bridge!
-            (Piece::TripleCube, -41.0),
-            (Piece::TripleCube, -42.2),
-            (Piece::TripleCube, -43.4),
+            (Piece::TripleCube, -45.0),
+            (Piece::TripleCube, -46.2),
+            (Piece::TripleCube, -47.4),
+            (Piece::TripleCube, -48.6),
+            (Piece::TripleCube, -49.8),
             // The huge drop, then double spikes!
-            (Piece::Spike, -52.0),
-            (Piece::Spike, -53.2),
-            // Ride two cubes, jump the spiky third.
-            (Piece::Cube, -60.0),
-            (Piece::Cube, -61.2),
-            (Piece::CubeWithSpike, -62.4),
-            (Piece::SkySpike, -70.0),
-            (Piece::BadGuy, -77.0),
-            (Piece::Cube, -84.0),
-            (Piece::Cube, -85.2),
-            (Piece::Cube, -86.4),
-            (Piece::Spike, -94.0),
+            (Piece::Spike, -59.0),
+            (Piece::Spike, -60.2),
+            // Ride three cubes, jump the spiky fourth.
+            (Piece::Cube, -68.0),
+            (Piece::Cube, -69.2),
+            (Piece::Cube, -70.4),
+            (Piece::CubeWithSpike, -71.6),
+            (Piece::SkySpike, -80.0),
+            (Piece::BadGuy, -87.0),
+            (Piece::Cube, -94.0),
+            (Piece::Cube, -95.2),
+            (Piece::Cube, -96.4),
+            (Piece::Cube, -97.6),
+            (Piece::Spike, -105.0),
         ],
 
         // ---------- BOSS LEVELS (4 and 7) ----------
