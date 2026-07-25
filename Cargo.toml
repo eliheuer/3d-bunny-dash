@@ -1,0 +1,15 @@
+[package]
+name = "bunny_geometry_dash"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# "wav" turns on Bevy's ability to play our .wav sound files.
+bevy = { version = "0.18.1", features = ["wav"] }
+
+# These settings make the game compile faster and run smoothly.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
