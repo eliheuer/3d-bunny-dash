@@ -8,8 +8,7 @@
 level 1 Bunny Meadow
 speed 8
 finish 106
-spike 18
-spike 23
+cube 18
 cube 27
 spike 36
 cube 45
@@ -17,16 +16,17 @@ cube 46
 cube 47
 skyspike 56
 badguy 65
+cube 73
 cube 74
 cube 75
 cubespike 76
-spike 85
+badguy 85
 skyspike 91
 spike 97
 
 level 2 Cube Mountain
 speed 8
-finish 110
+finish 121
 cube 18
 spike 26
 cube 33
@@ -42,15 +42,17 @@ cube 57
 spike 65
 cube 72
 cube 73
-cubespike 74
+cube 74
+cubespike 75
 skyspike 83
 spike 90
 cube 97
 cube 98
+badguy 111
 
 level 3 The Gauntlet
 speed 10
-finish 143
+finish 162
 badguy 18
 spike 27
 spike 28
@@ -68,23 +70,19 @@ spike 92
 spike 93
 skyspike 101
 spike 108
-skyspike 111
 cube 115
 cube 116
 cube 117
 spike 118
 cubespike 119
 spike 120
-skyspike 123
-skyspike 124
-skyspike 125
-skyspike 126
-skyspike 127
 skyspike 128
 skyspike 129
 skyspike 130
 skyspike 131
 skyspike 132
+badguy 143
+cube 152
 
 level 4 Rotten Tomato
 boss tomato
