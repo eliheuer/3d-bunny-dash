@@ -15,21 +15,17 @@ use crate::Piece;
 /// How many levels there are. The LAST one is the BOSS!
 pub const LAST_LEVEL: usize = 4;
 
-/// Each level is a little faster than the one before!
-/// Level 1 → 8, Level 2 → 9, Level 3 → 10, Boss → 8.
+/// How fast each level slides at you.
+/// Level 3 is the speedy one!
 pub fn level_speed(level: usize) -> f32 {
-    if level == LAST_LEVEL {
-        8.0 // the boss level doesn't scroll, anyway!
-    } else {
-        7.0 + level as f32
-    }
+    if level == 3 { 10.0 } else { 8.0 }
 }
 
 /// Where the golden finish gate waits in each level.
 pub fn finish_line(level: usize) -> f32 {
     match level {
         1 => -106.0,
-        2 => -112.0,
+        2 => -110.0,
         _ => -122.0,
     }
 }
@@ -49,33 +45,48 @@ pub fn level_pieces(level: usize) -> Vec<(Piece, f32)> {
             (Piece::Cube, -47.4),
             (Piece::SkySpike, -56.0),
             (Piece::BadGuy, -65.0),
-            // Hop on the plain cube, then jump the spiky one!
+            // Land on the bridge, ride two cubes, then
+            // jump the spiky third one!
             (Piece::Cube, -74.0),
-            (Piece::CubeWithSpike, -75.2),
+            (Piece::Cube, -75.2),
+            (Piece::CubeWithSpike, -76.4),
             (Piece::Spike, -85.0),
             (Piece::SkySpike, -91.0),
             (Piece::Spike, -97.0),
         ],
 
-        // ---------- LEVEL 2: Spiky Canyon ----------
-        // Faster! And DOUBLE spikes — jump a little early
-        // so you sail over both!
+        // ---------- LEVEL 2: Cube Mountain ----------
+        // A platform level! Hop from cube to cube, and
+        // climb the big cube mountain in the middle —
+        // regular cubes are the stairs, TALL cubes are
+        // the top. Up, up, across, and back down!
         2 => vec![
-            (Piece::Spike, -18.0),
-            // Two spikes side by side. One big jump!
-            (Piece::Spike, -27.0),
-            (Piece::Spike, -28.2),
-            (Piece::Cube, -37.0),
-            (Piece::Cube, -38.2),
-            (Piece::SkySpike, -48.0),
-            (Piece::Spike, -55.0),
-            (Piece::Cube, -63.0),
-            (Piece::CubeWithSpike, -64.2),
-            (Piece::BadGuy, -74.0),
-            (Piece::Spike, -82.0),
-            (Piece::Spike, -83.2),
-            (Piece::SkySpike, -92.0),
-            (Piece::Spike, -99.0),
+            (Piece::Cube, -18.0),
+            (Piece::Spike, -26.0),
+            // A little bridge to warm up.
+            (Piece::Cube, -33.0),
+            (Piece::Cube, -34.2),
+            (Piece::SkySpike, -43.0),
+            // THE CUBE MOUNTAIN! Three stairs up...
+            (Piece::Cube, -50.0),
+            (Piece::Cube, -51.2),
+            (Piece::Cube, -52.4),
+            // ...the tall peak (jump up from the stairs!)...
+            (Piece::TallCube, -53.6),
+            (Piece::TallCube, -54.8),
+            // ...and back down the other side.
+            (Piece::Cube, -56.0),
+            (Piece::Cube, -57.2),
+            (Piece::Spike, -65.0),
+            // Ride two cubes, jump the spiky third!
+            (Piece::Cube, -72.0),
+            (Piece::Cube, -73.2),
+            (Piece::CubeWithSpike, -74.4),
+            (Piece::SkySpike, -83.0),
+            (Piece::Spike, -90.0),
+            // One last little bridge before the gate.
+            (Piece::Cube, -97.0),
+            (Piece::Cube, -98.2),
         ],
 
         // ---------- LEVEL 3: The Gauntlet ----------
@@ -85,16 +96,18 @@ pub fn level_pieces(level: usize) -> Vec<(Piece, f32)> {
             (Piece::Spike, -27.0),
             (Piece::Spike, -28.2),
             (Piece::SkySpike, -37.0),
+            // Ride two cubes, jump the spiky third!
             (Piece::Cube, -45.0),
-            (Piece::CubeWithSpike, -46.2),
-            (Piece::Spike, -56.0),
-            (Piece::SkySpike, -63.0),
+            (Piece::Cube, -46.2),
+            (Piece::CubeWithSpike, -47.4),
+            (Piece::Spike, -58.0),
+            (Piece::SkySpike, -65.0),
             (Piece::BadGuy, -72.0),
             // A long bridge...
             (Piece::Cube, -80.0),
             (Piece::Cube, -81.2),
             (Piece::Cube, -82.4),
-            // ...then double spikes right after landing!
+            // ...then double spikes after you land!
             (Piece::Spike, -92.0),
             (Piece::Spike, -93.2),
             (Piece::SkySpike, -101.0),

@@ -67,6 +67,7 @@ const DODGES_PER_HEART: i32 = 3;
 pub enum Piece {
     Spike,         // orange cone on the ground — JUMP!
     Cube,          // purple platform cube — land on top, or jump over!
+    TallCube,      // TWO cubes high! Climb up from a normal cube!
     CubeWithSpike, // a cube with a spike hat — do NOT land here!
     SkySpike,      // blue upside-down cone in the air — DON'T jump!
     BadGuy,        // red bouncing ball — jump over him!
@@ -100,8 +101,12 @@ struct Scrolls;
 struct Deadly;
 
 /// Platform cubes: safe on TOP, deadly on the SIDE!
+/// Each one remembers how tall its top is, so the bunny
+/// knows how high to stand (normal cube: 1.2, tall: 2.4).
 #[derive(Component)]
-struct Platform;
+struct Platform {
+    top: f32,
+}
 
 /// The golden gate at the end of the level.
 #[derive(Component)]
@@ -430,11 +435,26 @@ fn switch_level(
                 commands.spawn((
                     LevelStuff,
                     Scrolls,
-                    Platform,
+                    Platform { top: CUBE_SIZE },
                     Mesh3d(cube_shape.clone()),
                     MeshMaterial3d(purple.clone()),
                     // The cube's middle is at half its height.
                     Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
+                ));
+            }
+            // A DOUBLE-TALL cube! Too high to reach from the
+            // ground — climb up using a normal cube first,
+            // like stairs!
+            Piece::TallCube => {
+                commands.spawn((
+                    LevelStuff,
+                    Scrolls,
+                    Platform {
+                        top: CUBE_SIZE * 2.0,
+                    },
+                    Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 2.0, CUBE_SIZE))),
+                    MeshMaterial3d(purple.clone()),
+                    Transform::from_xyz(0.0, CUBE_SIZE, start_z),
                 ));
             }
             // A cube wearing a spike hat. Do NOT land on this one!
@@ -442,7 +462,7 @@ fn switch_level(
                 commands.spawn((
                     LevelStuff,
                     Scrolls,
-                    Platform,
+                    Platform { top: CUBE_SIZE },
                     Mesh3d(cube_shape.clone()),
                     MeshMaterial3d(purple.clone()),
                     Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
@@ -576,19 +596,20 @@ fn switch_level(
 // ======================================================
 
 fn floor_height_under_bunny(
-    platforms: &Query<&Transform, (With<Platform>, Without<Bunny>)>,
+    platforms: &Query<(&Transform, &Platform), Without<Bunny>>,
 ) -> f32 {
     let mut floor = 0.0;
 
-    for platform in platforms {
+    for (position, platform) in platforms {
         // How far away is this cube from the bunny (at z = 0)?
         // ".abs()" makes minus numbers plus: -3 becomes 3.
-        let how_far = platform.translation.z.abs();
+        let how_far = position.translation.z.abs();
 
-        // If the cube is under our feet (closer than 1 away)...
-        if how_far < 1.0 {
-            // ...the floor is the TOP of the cube!
-            floor = CUBE_SIZE;
+        // If the cube is under our feet (closer than 1 away)
+        // AND its top is the highest one so far...
+        if how_far < 1.0 && platform.top > floor {
+            // ...the floor is the TOP of that cube!
+            floor = platform.top;
         }
     }
 
@@ -607,7 +628,7 @@ fn bunny_jump(
     time: Res<Time>,
     party: Res<Party>,
     mut bunnies: Query<(&mut Transform, &mut Bunny)>,
-    platforms: Query<&Transform, (With<Platform>, Without<Bunny>)>,
+    platforms: Query<(&Transform, &Platform), Without<Bunny>>,
 ) {
     // No jumping during the fireworks party!
     if party.happening {
@@ -835,7 +856,7 @@ fn check_for_crash(
     mut game: ResMut<Game>,
     mut bunnies: Query<(&mut Transform, &mut Bunny), Without<LevelStuff>>,
     deadly_things: Query<&Transform, (With<Deadly>, Without<Bunny>)>,
-    platforms: Query<&Transform, (With<Platform>, Without<Bunny>)>,
+    platforms: Query<(&Transform, &Platform), Without<Bunny>>,
 ) {
     // Nothing can hurt you during the party!
     if party.happening {
@@ -860,10 +881,10 @@ fn check_for_crash(
 
         // Platform cubes: only the SIDE is dangerous!
         // If a cube is at our spot AND our body is LOWER
-        // than the cube's top, we smacked into the side.
-        for cube in &platforms {
+        // than that cube's top, we smacked into the side.
+        for (cube, platform) in &platforms {
             let close_in_z = cube.translation.z.abs() < 1.0;
-            let too_low = bunny_position.translation.y < CUBE_SIZE - 0.15;
+            let too_low = bunny_position.translation.y < platform.top - 0.15;
             if close_in_z && too_low {
                 crashed = true;
             }

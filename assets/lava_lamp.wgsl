@@ -34,15 +34,31 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // Adding waves makes blobby, cloudy shapes.
     let blob = (wave1 + wave2 + wave3 + wave4) / 4.0;
 
-    // Turn the blob number into a COLOR. We use three
-    // more sine waves — one each for red, green, blue —
-    // each shifted a third of the way around a circle,
-    // so the colors chase each other like a rainbow.
-    let red   = 0.5 + 0.5 * sin(3.14159 * blob + t);
-    let green = 0.5 + 0.5 * sin(3.14159 * blob + t + 2.09);
-    let blue  = 0.5 + 0.5 * sin(3.14159 * blob + t + 4.18);
+    // Turn the blob number into LAVA LAMP colors!
+    // "heat" goes from 0 (cold) to 1 (hot):
+    //   cold spots  → BLACK
+    //   warmer      → deep RED
+    //   hot         → ORANGE
+    //   hottest     → YELLOW
+    let heat = blob * 0.5 + 0.5;
 
-    // Times 0.6 so the background stays soft and dreamy
+    // "smoothstep" is a gentle on-ramp: it slides from
+    // 0 up to 1 as heat crosses between the two numbers.
+    let red   = smoothstep(0.15, 0.5, heat);        // red turns on first
+    let green = smoothstep(0.5, 0.85, heat) * 0.6;  // then green joins in
+                                                    // (red + green = orange!)
+    var color = vec3<f32>(red, green, 0.0);
+
+    // And a few big slow PINK blobs drifting on top,
+    // made from their own extra-slow wave.
+    let pink_wave = 0.5 + 0.5 * sin(spot.x * 0.6 - spot.y * 0.4 + t * 0.8);
+    let pinkness = smoothstep(0.8, 1.0, pink_wave) * 0.7;
+
+    // "mix" blends two colors, like mixing paint:
+    // 0 = all lava color, 1 = all pink.
+    color = mix(color, vec3<f32>(1.0, 0.4, 0.7), pinkness);
+
+    // Times 0.7 so the background stays soft and dreamy
     // and doesn't fight with the bunny for attention.
-    return vec4<f32>(red * 0.6, green * 0.6, blue * 0.6, 1.0);
+    return vec4<f32>(color * 0.7, 1.0);
 }
