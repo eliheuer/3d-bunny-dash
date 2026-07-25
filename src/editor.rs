@@ -176,7 +176,7 @@ fn open_editor(
         EditorStuff,
         Text::new(
             "1 spike   2 cube   3 tall   4 triple   5 cube+spike   6 sky spike   7 bad guy\n\
-             arrows: move / change level      X delete      P playtest      S save      Esc menu",
+             arrows: move      L: change level      X delete      P playtest      S save      Esc menu",
         ),
         TextFont {
             font: font.0.clone(),
@@ -213,28 +213,29 @@ fn editor_keys(
     mut book: ResMut<LevelBook>,
     mut next_screen: ResMut<NextState<Screen>>,
 ) {
-    // ---- Gliding along the road ----
+    // ---- Gliding along the road (the arrow keys) ----
     if keyboard.just_pressed(KeyCode::ArrowRight) {
         editor.cursor += GRID_STEP;
     }
     if keyboard.just_pressed(KeyCode::ArrowLeft) {
         editor.cursor -= GRID_STEP;
     }
-    // Keep the cursor on the road (between 6 and 240).
+    // Keep the cursor on the road (between 6 and 240)...
     editor.cursor = editor.cursor.clamp(6.0, 240.0);
+    // ...and round it to one decimal place, so adding
+    // 1.2 over and over never leaves messy crumbs like
+    // 22.800003. (× 10, round, ÷ 10 → 22.8 exactly!)
+    editor.cursor = (editor.cursor * 10.0).round() / 10.0;
 
-    // ---- Picking which level to edit ----
-    // "position" finds where our level sits in the list.
-    let spot = EDITABLE_LEVELS
-        .iter()
-        .position(|&l| l == editor.level)
-        .unwrap_or(0);
-    if keyboard.just_pressed(KeyCode::ArrowUp) && spot + 1 < EDITABLE_LEVELS.len() {
-        editor.level = EDITABLE_LEVELS[spot + 1];
-        editor.needs_redraw = true;
-    }
-    if keyboard.just_pressed(KeyCode::ArrowDown) && spot > 0 {
-        editor.level = EDITABLE_LEVELS[spot - 1];
+    // ---- Picking which level to edit (the L key) ----
+    // Pressing L hops to the next level in the list, and
+    // "%" wraps back around to the start after the last!
+    if keyboard.just_pressed(KeyCode::KeyL) {
+        let spot = EDITABLE_LEVELS
+            .iter()
+            .position(|&l| l == editor.level)
+            .unwrap_or(0);
+        editor.level = EDITABLE_LEVELS[(spot + 1) % EDITABLE_LEVELS.len()];
         editor.needs_redraw = true;
     }
 

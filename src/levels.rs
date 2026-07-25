@@ -156,8 +156,12 @@ pub fn save_level_book(book: &LevelBook) {
             -level.finish,
         );
         for (piece, z) in &level.pieces {
-            // Flip the minus numbers back to plus for the file.
-            out += &format!("{} {}\n", piece_to_word(*piece), -z);
+            // Flip the minus numbers back to plus for the
+            // file, and round to one decimal place so the
+            // file never fills up with 22.800003-style
+            // crumbs (× 10, round, ÷ 10 → 22.8 exactly).
+            let distance = (-z * 10.0).round() / 10.0;
+            out += &format!("{} {}\n", piece_to_word(*piece), distance);
         }
     }
 

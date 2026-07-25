@@ -1,31 +1,15 @@
 # ======================================================
 #  THE LEVEL BOOK for 3D Bunny Geometry Dash!
 # ======================================================
-# This file IS the levels. The game reads it when it
-# starts, and the level editor saves back into it!
-#
-# How to write a level:
-#   level <number> <name>   starts a new level
-#   speed <number>          how fast it slides at you
-#   finish <distance>       where the golden gate waits
-#   <piece> <distance>      one piece on the road
-#
-# The pieces:
-#   spike      orange spike — jump it!
-#   cube       purple platform cube
-#   tall       two-cubes-tall platform
-#   triple     three-cubes-tall platform
-#   cubespike  cube with a spike hat
-#   skyspike   floating spike — DON'T jump!
-#   badguy     red bouncing ball
-#
-# Distances are how far down the road (bigger = farther).
-# Pieces 1.2 apart make a longer platform!
+# Pieces: spike cube tall triple cubespike skyspike badguy
+# Distances are how far down the road. Edit me by hand,
+# or use the LEVEL EDITOR in the game!
 
 level 1 Bunny Meadow
 speed 8
 finish 106
 spike 18
+spike 22.8
 cube 27
 spike 36
 cube 45
@@ -97,13 +81,10 @@ cube 19.2
 cube 20.4
 cube 21.6
 cube 22.8
-cube 28
-cube 29.2
-cube 30.4
-cube 31.6
-tall 32.8
-tall 34
-tall 35.2
+cubespike 24
+cubespike 25.2
+cube 26.4
+cube 27.6
 spike 44
 cube 51
 cube 52.2
