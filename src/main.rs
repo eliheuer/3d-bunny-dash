@@ -431,6 +431,7 @@ fn main() {
                 bounce_bad_guys,
                 boss_fight,
                 move_boss_shots,
+                fireball_embers,
                 check_for_crash,
                 check_for_finish,
                 sparkle_fireworks,
@@ -1771,6 +1772,59 @@ fn move_boss_shots(
                 }
             }
         }
+    }
+}
+
+// ======================================================
+//  FIRE EMBERS — every fireball sheds a trail of tiny
+//  glowing sparks! We reuse the FIREWORK system: an
+//  ember is just a very small, very short-lived firework.
+// ======================================================
+
+fn fireball_embers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut puff_timer: Local<f32>,
+    assets: Res<GameAssets>,
+    fireballs: Query<&Transform, With<Flickering>>,
+) {
+    // Shed a puff of embers every 0.04 seconds.
+    *puff_timer += time.delta_secs();
+    if *puff_timer < 0.04 {
+        return;
+    }
+    *puff_timer = 0.0;
+
+    let t = time.elapsed_secs();
+
+    for (i, fireball) in fireballs.iter().enumerate() {
+        // SINE SOUP! Computers can't really roll dice, so
+        // games often FAKE randomness: mixing fast sine
+        // waves of different speeds gives numbers that
+        // wiggle around unpredictably — random enough!
+        let j = i as f32;
+        let scatter = Vec3::new(
+            (t * 31.0 + j * 7.0).sin() * 1.3,
+            (t * 27.0 + j * 13.0).sin() * 1.0 + 0.8, // drift upward, like heat
+            (t * 23.0 + j * 5.0).sin() * 1.3,
+        );
+        // Take turns between orange and red embers.
+        let ember_color = if (t * 40.0 + j).sin() > 0.0 {
+            assets.fire_glow.clone()
+        } else {
+            assets.fire_hot_glow.clone()
+        };
+
+        commands.spawn((
+            // An ember IS a firework — tiny and brief.
+            Firework {
+                velocity: scatter,
+                life: 0.35,
+            },
+            Mesh3d(assets.spark_shape.clone()),
+            MeshMaterial3d(ember_color),
+            Transform::from_translation(fireball.translation).with_scale(Vec3::splat(0.55)),
+        ));
     }
 }
 
