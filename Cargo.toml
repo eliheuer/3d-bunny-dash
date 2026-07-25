@@ -1,7 +1,10 @@
 [package]
-name = "bunny_geometry_dash"
-version = "0.1.0"
+name = "bunny_dash"
+version = "1.0.0"
 edition = "2024"
+description = "3D Bunny Dash — a rhythm-jumping game about a pink bunny, made by a dad and his five-year-old to learn math and programming"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/eliheuer/3d-bunny-dash"
 
 [dependencies]
 # "wav" turns on Bevy's ability to play our .wav sound files.
@@ -13,3 +16,12 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+# A special squeezed-down build for the web version, so
+# the game downloads fast in the browser.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"

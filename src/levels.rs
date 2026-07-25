@@ -8,9 +8,12 @@
 
 use crate::Piece;
 use bevy::prelude::Resource;
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 
 /// Where the level book lives on disk.
+/// (On the web there is no disk, so this goes unused.)
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub const LEVELS_FILE: &str = "assets/levels.txt";
 
 /// Everything we know about ONE stage of the game.
@@ -86,6 +89,7 @@ impl LevelBook {
 }
 
 /// Turn a piece into the word we write in the file.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub fn piece_to_word(piece: Piece) -> &'static str {
     match piece {
         Piece::Spike => "spike",
@@ -117,6 +121,13 @@ pub fn word_to_piece(word: &str) -> Option<Piece> {
 /// at a time. This is called PARSING — turning words
 /// in a file into things the computer understands!
 pub fn load_level_book() -> LevelBook {
+    // In a web browser there are no files to read, so the
+    // level book gets BAKED INTO the game when we build it.
+    #[cfg(target_arch = "wasm32")]
+    let text = include_str!("../assets/levels.txt").to_string();
+
+    // On a real computer, read the file fresh each launch.
+    #[cfg(not(target_arch = "wasm32"))]
     let text = fs::read_to_string(LEVELS_FILE)
         .expect("Oh no — I couldn't find assets/levels.txt!");
 
@@ -179,7 +190,20 @@ pub fn load_level_book() -> LevelBook {
 
 /// Write the whole level book back into levels.txt.
 /// This is what the level editor's SAVE button does!
-pub fn save_level_book(book: &LevelBook) {
+/// Gives back true if it worked — in a web browser
+/// there's no file to write, so it gives back false.
+pub fn save_level_book(book: &LevelBook) -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = book; // (nothing to do on the web)
+        return false;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    save_to_disk(book)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn save_to_disk(book: &LevelBook) -> bool {
     let mut out = String::from(
         "# ======================================================\n\
          #  THE LEVEL BOOK for 3D Bunny Dash!\n\
@@ -208,5 +232,7 @@ pub fn save_level_book(book: &LevelBook) {
 
     if fs::write(LEVELS_FILE, out).is_err() {
         println!("Oh no — I couldn't save the level book!");
+        return false;
     }
+    true
 }

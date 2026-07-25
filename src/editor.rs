@@ -413,8 +413,12 @@ fn editor_keys(
 
     // ---- Saving (S) ----
     if keyboard.just_pressed(KeyCode::KeyS) {
-        levels::save_level_book(&book);
-        editor.message = "SAVED!".to_string();
+        editor.message = if levels::save_level_book(&book) {
+            "SAVED!".to_string()
+        } else {
+            // In a web browser there's no file to save to.
+            "no saving in the browser!".to_string()
+        };
         editor.message_timer = 2.5;
     }
 
