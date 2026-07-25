@@ -9,7 +9,7 @@
 
 use crate::{
     editor::Editor, levels::LevelBook, spawn_bunny_visual, spawn_thorn_plant, GameFont,
-    MainCamera, Screen, Settings,
+    MainCamera, ReadingFont, Screen, Settings,
 };
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
@@ -212,7 +212,7 @@ fn title_keys(
 //  THE SETTINGS SCREEN
 // ======================================================
 
-fn open_settings(mut commands: Commands, font: Res<GameFont>) {
+fn open_settings(mut commands: Commands, font: Res<GameFont>, reading: Res<ReadingFont>) {
     commands.spawn((
         SettingsStuff,
         Text::new("SETTINGS"),
@@ -235,8 +235,9 @@ fn open_settings(mut commands: Commands, font: Res<GameFont>) {
         SettingsWords,
         Text::new(""),
         TextFont {
-            font: font.0.clone(),
-            font_size: 36.0,
+            // The easy-reading font for the smaller words.
+            font: reading.0.clone(),
+            font_size: 32.0,
             ..default()
         },
         TextColor(Color::srgb(1.0, 0.9, 0.2)),

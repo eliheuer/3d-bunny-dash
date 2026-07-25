@@ -226,11 +226,15 @@ pub struct Settings {
     pub starting_level: usize,
 }
 
-/// Our fancy space font (Planet Kosmos), loaded once
-/// when the game starts and shared by every word on
-/// the screen.
+/// Our fancy space font (Planet Kosmos) for big titles
+/// and scores, loaded once and shared everywhere.
 #[derive(Resource)]
 pub struct GameFont(pub Handle<Font>);
+
+/// Our easy-reading font (Virtua Grotesk — made by Dad!)
+/// for smaller words like the editor's help text.
+#[derive(Resource)]
+pub struct ReadingFont(pub Handle<Font>);
 
 // ======================================================
 //  THE LAVA LAMP BACKGROUND — a custom shader material!
@@ -256,13 +260,18 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins);
 
-    // Load our fancy font before ANYTHING runs, so every
-    // screen can count on it being ready.
+    // Load our fonts before ANYTHING runs, so every
+    // screen can count on them being ready.
     let font = app
         .world()
         .resource::<AssetServer>()
         .load("fonts/PlanetKosmos.ttf");
     app.insert_resource(GameFont(font));
+    let reading = app
+        .world()
+        .resource::<AssetServer>()
+        .load("fonts/VirtuaGrotesk.ttf");
+    app.insert_resource(ReadingFont(reading));
 
     app.add_plugins(MaterialPlugin::<LavaLampMaterial>::default())
         .add_plugins(title::TitlePlugin)

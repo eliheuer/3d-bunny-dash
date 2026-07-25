@@ -17,8 +17,9 @@
 //! they're still there tomorrow!
 
 use crate::{
-    levels, levels::LevelBook, spawn_piece, GameFont, LevelStuff, MainCamera, Piece, Screen,
+    levels, levels::LevelBook, spawn_piece, LevelStuff, MainCamera, Piece, ReadingFont, Screen,
 };
+use bevy::light::NotShadowCaster;
 use bevy::prelude::*;
 
 /// The levels you're allowed to edit.
@@ -89,26 +90,66 @@ fn open_editor(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    font: Res<GameFont>,
+    font: Res<ReadingFont>,
     mut editor: ResMut<Editor>,
 ) {
     editor.playtesting = false;
     editor.needs_redraw = true;
 
-    // The glowing golden cursor: a tall see-through column
-    // so you can spot it at any platform height.
-    commands.spawn((
-        EditorStuff,
-        CursorMarker,
-        Mesh3d(meshes.add(Cuboid::new(1.3, 5.0, 1.3))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, 0.9, 0.2, 0.35),
-            // "Blend" lets us see THROUGH it, like stained glass.
-            alpha_mode: AlphaMode::Blend,
-            ..default()
-        })),
-        Transform::from_xyz(0.0, 2.5, -18.0),
-    ));
+    // The cursor: a green WIREFRAME box, like in 3D
+    // modeling programs! A box has 12 edges — 4 standing
+    // up, 4 across the top, 4 across the bottom — and we
+    // draw each edge as a very skinny glowing green stick.
+    let green_glow = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 1.0, 0.3),
+        emissive: LinearRgba::new(0.4, 3.0, 0.6, 1.0), // GLOW!
+        ..default()
+    });
+    // The box is 1.3 wide and 5.0 tall, so its edges sit
+    // half of that from the middle: 0.65 out, 2.5 up/down.
+    let w = 0.65; // halfway across
+    let h = 2.5; // halfway up
+    let t = 0.04; // how skinny each stick is
+
+    commands
+        .spawn((
+            EditorStuff,
+            CursorMarker,
+            Transform::from_xyz(0.0, 2.5, -18.0),
+            Visibility::default(),
+        ))
+        .with_children(|frame| {
+            // The 4 standing-up edges, one per corner.
+            // (-w,-w) (-w,+w) (+w,-w) (+w,+w) — every combo!
+            for (x, z) in [(-w, -w), (-w, w), (w, -w), (w, w)] {
+                frame.spawn((
+                    NotShadowCaster, // wireframes don't need shadows!
+                    Mesh3d(meshes.add(Cuboid::new(t, h * 2.0, t))),
+                    MeshMaterial3d(green_glow.clone()),
+                    Transform::from_xyz(x, 0.0, z),
+                ));
+            }
+            // The 8 lying-down edges: 4 on top, 4 on the
+            // bottom, going both directions.
+            for y in [-h, h] {
+                for z in [-w, w] {
+                    frame.spawn((
+                        NotShadowCaster,
+                        Mesh3d(meshes.add(Cuboid::new(w * 2.0, t, t))),
+                        MeshMaterial3d(green_glow.clone()),
+                        Transform::from_xyz(0.0, y, z),
+                    ));
+                }
+                for x in [-w, w] {
+                    frame.spawn((
+                        NotShadowCaster,
+                        Mesh3d(meshes.add(Cuboid::new(t, t, w * 2.0))),
+                        MeshMaterial3d(green_glow.clone()),
+                        Transform::from_xyz(x, y, 0.0),
+                    ));
+                }
+            }
+        });
 
     // The status words up top.
     commands.spawn((
