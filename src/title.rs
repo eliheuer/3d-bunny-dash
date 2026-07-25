@@ -277,12 +277,13 @@ fn settings_keys(
 
     // Keep the words up to date. The level book hands us
     // the stage's one true name tag, so the counting here
-    // matches the rest of the game!
+    // matches the rest of the game! The < and > match the
+    // left and right arrow keys that change it.
+    // (Our reading font has no arrow characters — a font
+    // only knows the letters its designer drew!)
     for mut text in &mut words {
         *text = Text::new(format!(
-            "Start at:  <  {}  >\n\n\
-             press Left / Right to change\n\n\
-             Esc: back to the title screen",
+            "Start at\n\n<     {}     >\n\n\nesc  back to the title screen",
             book.label(settings.starting_level),
         ));
     }
