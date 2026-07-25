@@ -152,10 +152,10 @@ fn open_title(
     // ----- The title words! -----
     commands.spawn((
         TitleStuff,
-        Text::new("3D BUNNY"),
+        Text::new("3D BUNNY DASH"),
         TextFont {
             font: font.0.clone(),
-            font_size: 120.0,
+            font_size: 100.0,
             ..default()
         },
         TextColor(Color::WHITE),

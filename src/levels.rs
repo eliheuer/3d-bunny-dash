@@ -182,7 +182,7 @@ pub fn load_level_book() -> LevelBook {
 pub fn save_level_book(book: &LevelBook) {
     let mut out = String::from(
         "# ======================================================\n\
-         #  THE LEVEL BOOK for 3D Bunny!\n\
+         #  THE LEVEL BOOK for 3D Bunny Dash!\n\
          # ======================================================\n\
          # Pieces: spike cube tall triple cubespike skyspike badguy\n\
          # Distances are how far down the road. Edit me by hand,\n\

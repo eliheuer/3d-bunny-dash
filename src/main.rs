@@ -1,5 +1,5 @@
 //! ======================================================
-//!                    3 D   B U N N Y
+//!               3 D   B U N N Y   D A S H
 //! ======================================================
 //! A game about a pink bunny who runs forever and
 //! jumps over obstacles. Press ANY key (or SPACE) to jump!
@@ -281,7 +281,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
-            title: "3D Bunny".to_string(),
+            title: "3D Bunny Dash".to_string(),
             ..default()
         }),
         ..default()

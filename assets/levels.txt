@@ -1,5 +1,5 @@
 # ======================================================
-#  THE LEVEL BOOK for 3D Bunny Geometry Dash!
+#  THE LEVEL BOOK for 3D Bunny Dash!
 # ======================================================
 # Pieces: spike cube tall triple cubespike skyspike badguy
 # Distances are how far down the road. Edit me by hand,
