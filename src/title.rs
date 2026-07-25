@@ -121,6 +121,9 @@ fn open_title(
         Node {
             position_type: PositionType::Absolute,
             top: Val::Percent(6.0),
+            // Scooted a hair left — the slanted letters
+            // lean right, so dead-center LOOKS off-center!
+            left: Val::Percent(-1.0),
             width: Val::Percent(100.0),
             ..default()
         },
