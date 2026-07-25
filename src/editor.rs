@@ -120,36 +120,23 @@ fn open_editor(
     snap_level_to_grid(book.get_mut(editor.level));
 
     // ---- THE GRID OVERLAY ----
-    // A faint line across the road at every whole-number
-    // spot, so you can SEE the grid you're snapping to.
-    // Every 5th line is yellow, to help you count!
-    // The same glowing green as the cursor, so the whole
-    // grid reads as one tool.
-    let faint_line = materials.add(StandardMaterial {
-        base_color: Color::srgba(0.2, 1.0, 0.3, 0.25),
+    // A line across the road at every whole-number spot,
+    // so you can SEE the grid you're snapping to — in the
+    // same glowing green as the cursor, so the whole grid
+    // reads as one tool.
+    let grid_green = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.2, 1.0, 0.3, 0.6),
         alpha_mode: AlphaMode::Blend, // see-through!
         unlit: true,                  // ignore shadows and sun
-        ..default()
-    });
-    let count_line = materials.add(StandardMaterial {
-        base_color: Color::srgba(0.2, 1.0, 0.3, 0.6),
-        alpha_mode: AlphaMode::Blend,
-        unlit: true,
         ..default()
     });
     let line_shape = meshes.add(Cuboid::new(8.0, 0.02, 0.06));
 
     for spot in 6..=240 {
-        // "% 5" — is this spot a multiple of 5?
-        let paint = if spot % 5 == 0 {
-            count_line.clone()
-        } else {
-            faint_line.clone()
-        };
         commands.spawn((
             EditorStuff,
             Mesh3d(line_shape.clone()),
-            MeshMaterial3d(paint),
+            MeshMaterial3d(grid_green.clone()),
             Transform::from_xyz(0.0, 0.02, -(spot as f32)),
         ));
     }
