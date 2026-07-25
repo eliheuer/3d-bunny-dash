@@ -191,6 +191,16 @@ struct Boss {
     hearts: i32,
     throw_timer: f32,
     shots_dodged: i32,
+    /// Counts every attack, so Bad Bat can take turns:
+    /// laser, sound wave, laser, sound wave...
+    attack_count: i32,
+}
+
+/// A sticker for Bad Bat's wings, so they can FLAP!
+/// side: -1 is the left wing, +1 is the right wing.
+#[derive(Component)]
+struct Wing {
+    side: f32,
 }
 
 /// Something a boss threw at you — a ball or a thorn!
@@ -336,6 +346,8 @@ fn main() {
         })
         // Run ONCE when the game starts:
         .add_systems(Startup, build_the_world)
+        // Bad Bat flaps on EVERY screen — even the title!
+        .add_systems(Update, flap_wings)
         // Run when we START and STOP playing:
         .add_systems(OnEnter(Screen::Playing), start_playing)
         .add_systems(OnExit(Screen::Playing), stop_playing)
@@ -701,19 +713,17 @@ pub fn spawn_bat_visual(
                 Transform::from_xyz(0.0, 0.0, 0.0),
             ));
             // Two BIG flat wings, one each side, tilted up.
-            // (A wing is just a very squashed box!)
-            bat.spawn((
-                Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
-                MeshMaterial3d(bat_dark.clone()),
-                Transform::from_xyz(-1.5, -0.1, 0.0)
-                    .with_rotation(Quat::from_rotation_z(0.25)),
-            ));
-            bat.spawn((
-                Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
-                MeshMaterial3d(bat_dark.clone()),
-                Transform::from_xyz(1.5, -0.1, 0.0)
-                    .with_rotation(Quat::from_rotation_z(-0.25)),
-            ));
+            // (A wing is just a very squashed box!) They
+            // wear the Wing sticker so they can FLAP.
+            for side in [-1.0f32, 1.0] {
+                bat.spawn((
+                    Wing { side },
+                    Mesh3d(meshes.add(Cuboid::new(2.2, 0.1, 1.1))),
+                    MeshMaterial3d(bat_dark.clone()),
+                    Transform::from_xyz(side * 1.5, -0.1, 0.0)
+                        .with_rotation(Quat::from_rotation_z(side * -0.25)),
+                ));
+            }
             // Two pointy ears on top.
             bat.spawn((
                 Mesh3d(meshes.add(Cone::new(0.2, 0.6))),
@@ -1051,6 +1061,7 @@ fn switch_level(
                 hearts,
                 throw_timer: 0.0,
                 shots_dodged: 0,
+                attack_count: 0,
             },
         ));
     } else {
@@ -1238,6 +1249,23 @@ fn spin_finish_line(time: Res<Time>, mut gates: Query<&mut Transform, With<Finis
 }
 
 // ======================================================
+//  FLAPPING — Bad Bat's wings beat using wave math,
+//  each wing swinging opposite ways around its hinge.
+// ======================================================
+
+fn flap_wings(time: Res<Time>, mut wings: Query<(&mut Transform, &Wing)>) {
+    for (mut wing_pose, wing) in &mut wings {
+        // A fast sine wave (9 beats per ~6 seconds of
+        // angle) sweeps the wings up and down together.
+        let flap = (time.elapsed_secs() * 9.0).sin() * 0.35;
+
+        // Each wing tilts from its resting angle (0.25),
+        // mirrored by its side so they beat like real wings.
+        wing_pose.rotation = Quat::from_rotation_z(wing.side * -(0.25 + flap));
+    }
+}
+
+// ======================================================
 //  BOUNCING — the bad guys hop using WAVE MATH!
 // ======================================================
 
@@ -1301,11 +1329,16 @@ fn boss_fight(
 
         if boss.throw_timer > time_between_throws {
             boss.throw_timer = 0.0;
+            boss.attack_count += 1;
 
             match boss.kind {
                 // The Rotten Tomato spits a big BLACK SEED
-                // that rolls straight at the bunny.
+                // that rolls straight at the bunny. PTOO!
                 BossKind::RottenTomato => {
+                    commands.spawn((
+                        AudioPlayer::new(sounds.load("spit.wav")),
+                        PlaybackSettings::DESPAWN,
+                    ));
                     commands.spawn((
                         LevelStuff,
                         Deadly,
@@ -1329,6 +1362,11 @@ fn boss_fight(
                     let aim_at = Vec3::new(0.0, 0.5, 0.0);
                     let velocity = (aim_at - flower).normalize() * 11.0;
 
+                    // ZIP!
+                    commands.spawn((
+                        AudioPlayer::new(sounds.load("thorn.wav")),
+                        PlaybackSettings::DESPAWN,
+                    ));
                     commands.spawn((
                         LevelStuff,
                         Deadly,
@@ -1343,32 +1381,72 @@ fn boss_fight(
                             )),
                     ));
                 }
-                // BAD BAT fires a LASER — long, glowing, and
-                // FAST (speed 15!) — aimed from wherever he
-                // swooped to, straight at the bunny's spot.
+                // BAD BAT has TWO attacks and takes turns!
+                // REMAINDER MATH again: count % 2 is 0,
+                // then 1, then 0, then 1... even, odd!
                 BossKind::BadBat => {
                     let mouth = position.translation + Vec3::new(0.0, -0.2, 0.8);
                     let aim_at = Vec3::new(0.0, 0.5, 0.0);
-                    let velocity = (aim_at - mouth).normalize() * 15.0;
 
-                    commands.spawn((
-                        LevelStuff,
-                        Deadly,
-                        BossShot { velocity },
-                        // A long skinny glowing red beam!
-                        Mesh3d(meshes.add(Cuboid::new(0.15, 0.15, 2.2))),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: RED,
-                            emissive: LinearRgba::new(6.0, 0.4, 0.4, 1.0),
-                            ..default()
-                        })),
-                        Transform::from_translation(mouth)
-                            // Point the beam the way it flies!
-                            .with_rotation(Quat::from_rotation_arc(
-                                Vec3::Z,
-                                velocity.normalize(),
-                            )),
-                    ));
+                    if boss.attack_count % 2 == 0 {
+                        // Even turns: the LASER — long, glowing,
+                        // and FAST (speed 15!). PEW!
+                        let velocity = (aim_at - mouth).normalize() * 15.0;
+
+                        commands.spawn((
+                            AudioPlayer::new(sounds.load("laser.wav")),
+                            PlaybackSettings::DESPAWN,
+                        ));
+                        commands.spawn((
+                            LevelStuff,
+                            Deadly,
+                            BossShot { velocity },
+                            // A long skinny glowing red beam!
+                            Mesh3d(meshes.add(Cuboid::new(0.15, 0.15, 2.2))),
+                            MeshMaterial3d(materials.add(StandardMaterial {
+                                base_color: RED,
+                                emissive: LinearRgba::new(6.0, 0.4, 0.4, 1.0),
+                                ..default()
+                            })),
+                            Transform::from_translation(mouth)
+                                // Point the beam the way it flies!
+                                .with_rotation(Quat::from_rotation_arc(
+                                    Vec3::Z,
+                                    velocity.normalize(),
+                                )),
+                        ));
+                    } else {
+                        // Odd turns: the SOUND WAVE — a big
+                        // purple ring of noise, slower than
+                        // the laser but bigger! WUBWUBWUB!
+                        let velocity = (aim_at - mouth).normalize() * 8.0;
+
+                        commands.spawn((
+                            AudioPlayer::new(sounds.load("wave.wav")),
+                            PlaybackSettings::DESPAWN,
+                        ));
+                        commands.spawn((
+                            LevelStuff,
+                            Deadly,
+                            BossShot { velocity },
+                            // A glowing purple ring (a donut
+                            // shape — math calls it a torus!)
+                            Mesh3d(meshes.add(Torus::new(0.45, 0.65))),
+                            MeshMaterial3d(materials.add(StandardMaterial {
+                                base_color: PURPLE,
+                                emissive: LinearRgba::new(2.5, 1.2, 4.5, 1.0),
+                                ..default()
+                            })),
+                            Transform::from_translation(mouth)
+                                // Face the ring the way it flies!
+                                // (A torus lies flat, so we aim
+                                // its UP direction at the bunny.)
+                                .with_rotation(Quat::from_rotation_arc(
+                                    Vec3::Y,
+                                    velocity.normalize(),
+                                )),
+                        ));
+                    }
                 }
             }
         }
