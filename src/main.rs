@@ -478,25 +478,32 @@ fn build_game_assets(
         white: materials.add(WHITE),
         ink: materials.add(INK),
         gold: materials.add(YELLOW),
-        thorn_gray: materials.add(Color::srgb(0.45, 0.45, 0.4)),
+        // The shots glow in the SAME paintbox colors as
+        // everything else: the glow is just the color
+        // itself, turned up ×3 — bright but still itself!
+        thorn_gray: materials.add(StandardMaterial {
+            base_color: GREEN,
+            emissive: GREEN.to_linear() * 3.0,
+            ..default()
+        }),
         laser_glow: materials.add(StandardMaterial {
             base_color: RED,
-            emissive: LinearRgba::new(6.0, 0.4, 0.4, 1.0),
+            emissive: RED.to_linear() * 3.0,
             ..default()
         }),
         wave_glow: materials.add(StandardMaterial {
             base_color: PURPLE,
-            emissive: LinearRgba::new(2.5, 1.2, 4.5, 1.0),
+            emissive: PURPLE.to_linear() * 3.0,
             ..default()
         }),
         fire_glow: materials.add(StandardMaterial {
             base_color: ORANGE,
-            emissive: LinearRgba::new(5.0, 2.0, 0.3, 1.0),
+            emissive: ORANGE.to_linear() * 3.0,
             ..default()
         }),
         fire_hot_glow: materials.add(StandardMaterial {
-            base_color: YELLOW,
-            emissive: LinearRgba::new(6.0, 5.0, 1.0, 1.0),
+            base_color: RED,
+            emissive: RED.to_linear() * 3.0,
             ..default()
         }),
         spark_glow: firework_colors
