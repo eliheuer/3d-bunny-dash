@@ -257,15 +257,6 @@ fn build_the_world(
     let green = materials.add(Color::srgb(0.3, 0.8, 0.4));
     let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
 
-    // ---------- THE LAVA LAMP BACKGROUND ----------
-    // A giant wall far behind everything, painted by
-    // our shader program (see assets/lava_lamp.wgsl).
-    commands.spawn((
-        Mesh3d(meshes.add(Rectangle::new(400.0, 160.0))),
-        MeshMaterial3d(lava.add(LavaLampMaterial {})),
-        Transform::from_xyz(0.0, 20.0, -160.0),
-    ));
-
     // ---------- THE GROUND ----------
     // A big flat box: 8 wide, very long, and thin like a pancake.
     commands.spawn((
@@ -331,11 +322,27 @@ fn build_the_world(
         Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
-    // ---------- THE CAMERA ----------
-    commands.spawn((
-        Camera3d::default(),
-        Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y),
-    ));
+    // ---------- THE CAMERA (with the background stuck on!) ----------
+    commands
+        .spawn((
+            Camera3d::default(),
+            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y),
+        ))
+        .with_children(|camera| {
+            // ---------- THE LAVA LAMP BACKGROUND ----------
+            // A giant wall painted by our shader program
+            // (see assets/lava_lamp.wgsl). It is a CHILD of
+            // the camera — like a poster taped WAY out in
+            // front of the lens — so no matter where the
+            // camera looks, the background fills the screen!
+            camera.spawn((
+                Mesh3d(meshes.add(Rectangle::new(2400.0, 1000.0))),
+                MeshMaterial3d(lava.add(LavaLampMaterial {})),
+                // 600 away, deeper than the whole level,
+                // so everything else draws in front of it.
+                Transform::from_xyz(0.0, 0.0, -600.0),
+            ));
+        });
 
     // ---------- THE CORNER WORDS ----------
     commands.spawn((
