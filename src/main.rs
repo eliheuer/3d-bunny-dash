@@ -267,7 +267,9 @@ pub fn action_camera() -> Transform {
     // Aiming a little HIGHER (y = 2.2) tips the camera up,
     // which slides the whole scene DOWN in the window —
     // room for the tall bosses and flying bats up top!
-    Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 2.2, -3.0), Vec3::Y)
+    // And standing a bit closer makes the bunny nice
+    // and big on screen.
+    Transform::from_xyz(4.9, 4.4, 7.4).looking_at(Vec3::new(0.0, 2.2, -3.0), Vec3::Y)
 }
 
 // ======================================================
