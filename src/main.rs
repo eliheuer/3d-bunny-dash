@@ -261,6 +261,13 @@ pub struct GameFont(pub Handle<Font>);
 #[derive(Resource)]
 pub struct ReadingFont(pub Handle<Font>);
 
+/// The game's camera spot — close and low, so the wide
+/// lens makes the road feel fast and dramatic. The title
+/// screen and the game both ask here, so they always match.
+pub fn action_camera() -> Transform {
+    Transform::from_xyz(4.2, 3.6, 7.0).looking_at(Vec3::new(0.0, 1.2, -4.0), Vec3::Y)
+}
+
 // ======================================================
 //  THE LAVA LAMP BACKGROUND — a custom shader material!
 //  The real magic is in assets/lava_lamp.wgsl, a tiny
@@ -409,21 +416,32 @@ fn build_the_world(
         .spawn((
             MainCamera,
             Camera3d::default(),
+            // A WIDE-ANGLE lens! A normal camera sees about
+            // 0.78 radians of the world top-to-bottom; ours
+            // sees 1.15 — like a fish-eye action camera.
+            // Near things look big, far things rush away —
+            // much more dramatic!
+            Projection::Perspective(PerspectiveProjection {
+                fov: 1.15,
+                ..default()
+            }),
             // The soft glow-from-everywhere ambient light.
             AmbientLight {
                 color: Color::srgb(0.9, 0.9, 1.0), // a whisper of sky blue
                 brightness: 400.0,
                 ..default()
             },
-            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y),
+            action_camera(),
         ))
         .with_children(|camera| {
             // The lava lamp background is a CHILD of the
             // camera — like a poster taped WAY out in front
             // of the lens — so wherever the camera goes,
             // the background fills the whole screen!
+            // (Extra big, so even the wide lens can't see
+            // past its edges.)
             camera.spawn((
-                Mesh3d(meshes.add(Rectangle::new(2400.0, 1000.0))),
+                Mesh3d(meshes.add(Rectangle::new(3600.0, 1500.0))),
                 MeshMaterial3d(lava.add(LavaLampMaterial {})),
                 Transform::from_xyz(0.0, 0.0, -600.0),
             ));
@@ -849,8 +867,7 @@ fn start_playing(
 ) {
     // Point the camera at the action.
     for mut camera in &mut cameras {
-        *camera =
-            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y);
+        *camera = action_camera();
     }
 
     score.points = 0.0;

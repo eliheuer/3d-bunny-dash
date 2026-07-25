@@ -391,7 +391,7 @@ fn editor_keys(
     // ---- Saving (S) ----
     if keyboard.just_pressed(KeyCode::KeyS) {
         levels::save_level_book(&book);
-        editor.message = "SAVED to assets/levels.txt!".to_string();
+        editor.message = "SAVED!".to_string();
         editor.message_timer = 2.5;
     }
 

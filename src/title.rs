@@ -48,14 +48,14 @@ fn open_title(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     font: Res<GameFont>,
+    reading: Res<ReadingFont>,
     mut cameras: Query<&mut Transform, With<MainCamera>>,
 ) {
     // The title screen IS a little level! Same camera as
     // the game, the bunny on the road, pieces up ahead —
     // and all three bosses waiting at the end of it.
     for mut camera in &mut cameras {
-        *camera =
-            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y);
+        *camera = crate::action_camera();
     }
 
     // ----- The bunny, right where it stands in the game -----
@@ -85,7 +85,7 @@ fn open_title(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(-2.6, 2.0, -20.0).with_scale(Vec3::splat(0.8)),
+        Transform::from_xyz(-2.4, 1.8, -17.0).with_scale(Vec3::splat(0.8)),
     );
     commands.entity(tomato).insert(TitleStuff);
 
@@ -93,15 +93,17 @@ fn open_title(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(2.6, 0.0, -21.0),
+        Transform::from_xyz(2.4, 0.0, -18.0),
     );
     commands.entity(plant).insert(TitleStuff);
 
+    // Bad Bat hovers between them — low enough to stay
+    // on screen under the big title!
     let bat = spawn_bat_visual(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(0.0, 5.0, -24.0),
+        Transform::from_xyz(-0.2, 3.6, -21.0),
     );
     commands.entity(bat).insert(TitleStuff);
 
@@ -123,23 +125,48 @@ fn open_title(
             ..default()
         },
     ));
-    commands.spawn((
-        TitleStuff,
-        Text::new("[1] PLAY        [2] SETTINGS        [3] LEVEL EDITOR"),
-        TextFont {
-            font: font.0.clone(),
-            font_size: 38.0,
-            ..default()
-        },
-        TextColor(crate::YELLOW),
-        TextLayout::new_with_justify(Justify::Center),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Percent(86.0),
-            width: Val::Percent(100.0),
-            ..default()
-        },
-    ));
+    // The menu row: yellow keys, white labels, in the
+    // easy-reading font — same style as the level editor.
+    let menu_items = [("1", " play        "), ("2", " settings        "), ("3", " level editor")];
+    commands
+        .spawn((
+            TitleStuff,
+            Text::new(""),
+            TextFont {
+                font: reading.0.clone(),
+                font_size: 36.0,
+                ..default()
+            },
+            TextLayout::new_with_justify(Justify::Center),
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Percent(86.0),
+                width: Val::Percent(100.0),
+                ..default()
+            },
+        ))
+        .with_children(|row| {
+            for (key, label) in menu_items {
+                row.spawn((
+                    TextSpan::new(key),
+                    TextColor(crate::YELLOW),
+                    TextFont {
+                        font: reading.0.clone(),
+                        font_size: 36.0,
+                        ..default()
+                    },
+                ));
+                row.spawn((
+                    TextSpan::new(label),
+                    TextColor(Color::WHITE),
+                    TextFont {
+                        font: reading.0.clone(),
+                        font_size: 36.0,
+                        ..default()
+                    },
+                ));
+            }
+        });
 }
 
 fn close_title(
@@ -180,12 +207,12 @@ fn title_keys(
 //  THE SETTINGS SCREEN
 // ======================================================
 
-fn open_settings(mut commands: Commands, font: Res<GameFont>, reading: Res<ReadingFont>) {
+fn open_settings(mut commands: Commands, reading: Res<ReadingFont>) {
     commands.spawn((
         SettingsStuff,
-        Text::new("SETTINGS"),
+        Text::new("settings"),
         TextFont {
-            font: font.0.clone(),
+            font: reading.0.clone(),
             font_size: 84.0,
             ..default()
         },
