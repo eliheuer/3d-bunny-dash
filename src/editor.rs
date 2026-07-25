@@ -123,14 +123,16 @@ fn open_editor(
     // A faint line across the road at every whole-number
     // spot, so you can SEE the grid you're snapping to.
     // Every 5th line is yellow, to help you count!
+    // The same glowing green as the cursor, so the whole
+    // grid reads as one tool.
     let faint_line = materials.add(StandardMaterial {
-        base_color: Color::srgba(1.0, 1.0, 1.0, 0.25),
+        base_color: Color::srgba(0.2, 1.0, 0.3, 0.25),
         alpha_mode: AlphaMode::Blend, // see-through!
         unlit: true,                  // ignore shadows and sun
         ..default()
     });
     let count_line = materials.add(StandardMaterial {
-        base_color: Color::srgba(1.0, 0.85, 0.3, 0.6),
+        base_color: Color::srgba(0.2, 1.0, 0.3, 0.6),
         alpha_mode: AlphaMode::Blend,
         unlit: true,
         ..default()

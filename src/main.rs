@@ -1259,6 +1259,7 @@ fn boss_fight(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     time: Res<Time>,
+    sounds: Res<AssetServer>,
     font: Res<GameFont>,
     game: Res<Game>,
     mut party: ResMut<Party>,
@@ -1379,6 +1380,7 @@ fn boss_fight(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
+                &sounds,
                 &font,
                 &mut party,
                 message,
@@ -1501,6 +1503,7 @@ fn check_for_finish(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    sounds: Res<AssetServer>,
     font: Res<GameFont>,
     mut party: ResMut<Party>,
     game: Res<Game>,
@@ -1517,6 +1520,7 @@ fn check_for_finish(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
+                &sounds,
                 &font,
                 &mut party,
                 "LEVEL COMPLETE!",
@@ -1534,6 +1538,7 @@ fn start_party(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    sounds: &AssetServer,
     font: &GameFont,
     party: &mut Party,
     message: &str,
@@ -1542,6 +1547,12 @@ fn start_party(
     party.happening = true;
     party.timer = 0.0;
     party.next_level = next_level;
+
+    // Play the victory fanfare! Ta-da-da-DAAA!
+    commands.spawn((
+        AudioPlayer::new(sounds.load("win.wav")),
+        PlaybackSettings::DESPAWN,
+    ));
 
     // ----- The big words on the screen -----
     commands.spawn((
