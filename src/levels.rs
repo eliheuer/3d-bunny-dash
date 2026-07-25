@@ -74,6 +74,15 @@ impl LevelBook {
         count
     }
 
+    /// Find which stage a boss lives on, by its word —
+    /// like "evilbunny" for the secret bonus fight!
+    pub fn find_boss(&self, word: &str) -> Option<usize> {
+        self.levels
+            .iter()
+            .position(|level| level.boss == word)
+            .map(|page| page + 1)
+    }
+
     /// THE ONE TRUE NAME TAG! Every screen in the game
     /// asks here, so a stage is always called the same
     /// thing everywhere: "Level 4: Sky Stairs" for real

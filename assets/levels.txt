@@ -303,3 +303,8 @@ level 12 Bad Bat
 boss bat
 speed 8
 finish 0
+
+level 13 Evil Bunny
+boss evilbunny
+speed 8
+finish 0

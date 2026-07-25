@@ -182,6 +182,9 @@ enum BossKind {
     RottenTomato, // boss 1: a giant moldy tomato — spits seeds!
     CursedThorn,  // boss 2: a spiky rose in a pot — shoots thorns!
     BadBat,       // the FINAL boss: fast, tricky... and LASERS!
+    EvilBunny,    // the SECRET boss! Beat any boss without
+                  // dying once to face him on the rainbow
+                  // road, where his carrot bombs BREAK it!
 }
 
 /// A BOSS! It remembers its hearts and its throwing.
@@ -215,6 +218,27 @@ struct Swaying;
 /// A sticker for fireballs, so they FLICKER like flame.
 #[derive(Component)]
 struct Flickering;
+
+/// A carrot bomb thrown by the Evil Bunny! It flies in
+/// an arc and BREAKS THE ROAD where it lands.
+#[derive(Component)]
+struct CarrotBomb {
+    velocity: Vec3,
+}
+
+/// A broken hole in the road. Stand on it and you fall in!
+#[derive(Component)]
+struct Hole;
+
+/// A little golden trophy in the corner — one for every
+/// level beaten WITHOUT DYING ONCE.
+#[derive(Component)]
+struct Trophy;
+
+/// The spinning star above the bunny's head — earned by
+/// beating a boss without dying once!
+#[derive(Component)]
+struct StarCharm;
 
 /// Something a boss threw at you — a ball or a thorn!
 #[derive(Component)]
@@ -257,6 +281,28 @@ struct Score {
 pub struct Game {
     pub level: usize,
     pub switch_to: Option<usize>,
+    /// Where to go after the secret Evil Bunny fight.
+    pub bonus_return: usize,
+}
+
+/// How this run of the current level is going.
+#[derive(Resource)]
+struct RunStats {
+    /// How many times we've died on this level so far.
+    /// Zero when we reach the end = a PERFECT run!
+    deaths: usize,
+    /// A moment of safety right after a restart, so one
+    /// crash can never accidentally count twice.
+    grace: f32,
+}
+
+/// The prizes you've earned this session!
+#[derive(Resource)]
+struct Awards {
+    /// One golden trophy per level beaten without dying.
+    trophies: usize,
+    /// Beat a boss without dying → a star over your head!
+    star: bool,
 }
 
 /// Is the fireworks party happening?
@@ -417,6 +463,15 @@ fn main() {
         .insert_resource(Game {
             level: 1,
             switch_to: None,
+            bonus_return: 1,
+        })
+        .insert_resource(RunStats {
+            deaths: 0,
+            grace: 0.0,
+        })
+        .insert_resource(Awards {
+            trophies: 0,
+            star: false,
         })
         .insert_resource(Party {
             happening: false,
@@ -430,7 +485,14 @@ fn main() {
         // thorn sways, and ears flop on the title too!
         .add_systems(
             Update,
-            (flap_wings, blink_tomato_eyes, sway_plants, flop_ears, flicker_fire),
+            (
+                flap_wings,
+                blink_tomato_eyes,
+                sway_plants,
+                flop_ears,
+                flicker_fire,
+                spin_charms,
+            ),
         )
         // Run when we START and STOP playing:
         .add_systems(OnEnter(Screen::Playing), start_playing)
@@ -447,9 +509,12 @@ fn main() {
                 bounce_bad_guys,
                 boss_fight,
                 move_boss_shots,
+                move_carrot_bombs,
                 fireball_embers,
                 check_for_crash,
                 check_for_finish,
+                sync_trophies,
+                attach_star,
                 sparkle_fireworks,
                 end_the_party,
                 update_words,
@@ -935,6 +1000,70 @@ pub fn spawn_bat_visual(
         .id()
 }
 
+/// Build the EVIL BUNNY: the bunny's shadowy double —
+/// bigger, darker, and with glowing red eyes.
+pub fn spawn_evil_bunny_visual(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    place: Transform,
+) -> Entity {
+    let shadow = materials.add(Color::srgb(0.25, 0.16, 0.3));
+    let dark_ear = materials.add(Color::srgb(0.35, 0.2, 0.4));
+    let eye_red = materials.add(StandardMaterial {
+        base_color: RED,
+        emissive: RED.to_linear() * 4.0,
+        ..default()
+    });
+    let gray = materials.add(Color::srgb(0.5, 0.5, 0.55));
+
+    commands
+        .spawn((place, Visibility::default()))
+        .with_children(|bunny| {
+            // The same bunny shapes... but WRONG.
+            bunny.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.5))),
+                MeshMaterial3d(shadow.clone()),
+                Transform::from_xyz(0.0, 0.0, 0.0),
+            ));
+            bunny.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.35))),
+                MeshMaterial3d(shadow.clone()),
+                Transform::from_xyz(0.0, 0.55, 0.3),
+            ));
+            // Glowing red eyes, facing the REAL bunny.
+            bunny.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.07))),
+                MeshMaterial3d(eye_red.clone()),
+                Transform::from_xyz(-0.13, 0.63, 0.6),
+            ));
+            bunny.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.07))),
+                MeshMaterial3d(eye_red.clone()),
+                Transform::from_xyz(0.13, 0.63, 0.6),
+            ));
+            // Crooked ears — one straight, one bent.
+            bunny.spawn((
+                Mesh3d(meshes.add(Capsule3d::new(0.08, 0.5))),
+                MeshMaterial3d(dark_ear.clone()),
+                Transform::from_xyz(-0.15, 1.1, 0.3),
+            ));
+            bunny.spawn((
+                Mesh3d(meshes.add(Capsule3d::new(0.08, 0.5))),
+                MeshMaterial3d(dark_ear.clone()),
+                Transform::from_xyz(0.18, 1.05, 0.3)
+                    .with_rotation(Quat::from_rotation_z(-0.5)),
+            ));
+            // A gray tail. Even his fluff is grim.
+            bunny.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.18))),
+                MeshMaterial3d(gray.clone()),
+                Transform::from_xyz(0.0, 0.0, -0.55),
+            ));
+        })
+        .id()
+}
+
 /// Build ONE level piece at one spot on the road.
 /// The game builds whole levels with this, and the
 /// LEVEL EDITOR uses it to show pieces as you place them!
@@ -1178,6 +1307,7 @@ fn switch_level(
     mut materials: ResMut<Assets<StandardMaterial>>,
     assets: Res<GameAssets>,
     mut game: ResMut<Game>,
+    mut stats: ResMut<RunStats>,
     book: Res<LevelBook>,
     old_stuff: Query<Entity, With<LevelStuff>>,
 ) {
@@ -1186,6 +1316,17 @@ fn switch_level(
     let Some(new_level) = game.switch_to.take() else {
         return; // no order? nothing to do.
     };
+
+    // Moving to a DIFFERENT stage starts a fresh perfect
+    // run — but restarting the SAME stage after a crash
+    // keeps counting, no take-backs!
+    if new_level != game.level {
+        stats.deaths = 0;
+    }
+    // Either way, a short moment of safety while the new
+    // level builds itself.
+    stats.grace = 0.3;
+
     game.level = new_level;
 
     // Sweep away every piece of the old level.
@@ -1221,12 +1362,42 @@ fn switch_level(
             ),
             // BAD BAT — one EXTRA heart, because he's the
             // final boss and he knows it.
-            _ => (
+            "bat" => (
                 spawn_bat_visual(&mut commands, &mut meshes, &mut materials, start),
                 BossKind::BadBat,
                 BOSS_HEARTS + 1,
             ),
+            // The SECRET boss: the EVIL BUNNY, hopping mad.
+            _ => (
+                spawn_evil_bunny_visual(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    start.with_scale(Vec3::splat(1.5)),
+                ),
+                BossKind::EvilBunny,
+                BOSS_HEARTS,
+            ),
         };
+
+        // The Evil Bunny fights on the RAINBOW ROAD! Seven
+        // stripes, one per paintbox color, side by side
+        // across the road: each is 8÷7 wide.
+        if boss_word == "evilbunny" {
+            let rainbow = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK];
+            let stripe_width = 8.0 / 7.0;
+            for (i, color) in rainbow.iter().enumerate() {
+                // Stripe i starts at the road's left edge
+                // (-4) and each one steps over by one width.
+                let x = -4.0 + (i as f32 + 0.5) * stripe_width;
+                commands.spawn((
+                    LevelStuff,
+                    Mesh3d(meshes.add(Cuboid::new(stripe_width, 0.05, 90.0))),
+                    MeshMaterial3d(materials.add(*color)),
+                    Transform::from_xyz(x, 0.02, -30.0),
+                ));
+            }
+        }
         commands.entity(villain).insert((
             LevelStuff,
             Boss {
@@ -1523,7 +1694,10 @@ fn boss_fight(
     time: Res<Time>,
     sounds: Res<AssetServer>,
     font: Res<GameFont>,
-    game: Res<Game>,
+    mut game: ResMut<Game>,
+    stats: Res<RunStats>,
+    mut awards: ResMut<Awards>,
+    book: Res<LevelBook>,
     mut party: ResMut<Party>,
     mut bosses: Query<(&mut Boss, &mut Transform)>,
 ) {
@@ -1555,6 +1729,13 @@ fn boss_fight(
                 position.translation.x = (time.elapsed_secs() * 1.3 * speed_up).sin() * 3.0;
                 position.translation.y =
                     3.0 + (time.elapsed_secs() * 2.1 * speed_up).sin() * 1.3;
+            }
+            // The EVIL BUNNY hops just like you do —
+            // side to side, bounce bounce bounce.
+            BossKind::EvilBunny => {
+                position.translation.x = (time.elapsed_secs() * 1.1).sin() * 2.5;
+                position.translation.y =
+                    0.75 + (time.elapsed_secs() * 2.6).sin().abs() * 1.2;
             }
         }
 
@@ -1738,17 +1919,92 @@ fn boss_fight(
                         }
                     }
                 }
+                // The EVIL BUNNY lobs a CARROT BOMB in a
+                // big arc — and where it lands, the
+                // rainbow road BREAKS!
+                BossKind::EvilBunny => {
+                    commands.spawn((
+                        AudioPlayer::new(sounds.load("spit.wav")),
+                        PlaybackSettings::DESPAWN,
+                    ));
+
+                    let start = position.translation + Vec3::new(0.0, 0.6, 0.5);
+                    // He aims at one of three landing spots,
+                    // taking turns: 4, 8, or 12 up the road.
+                    let land_z = -(4.0 + (boss.attack_count % 3) as f32 * 4.0);
+                    // ARC MATH: pick how long the bomb flies
+                    // (0.9 seconds), then work backwards to
+                    // find the throw speed that lands it
+                    // right on target — with gravity pulling
+                    // the whole way!
+                    let flight = 0.9;
+                    let bomb_gravity = GRAVITY * 0.5;
+                    let velocity = Vec3::new(
+                        -start.x / flight,
+                        (0.3 - start.y) / flight + 0.5 * bomb_gravity * flight,
+                        (land_z - start.z) / flight,
+                    );
+
+                    commands
+                        .spawn((
+                            LevelStuff,
+                            Deadly,
+                            CarrotBomb { velocity },
+                            Transform::from_translation(start),
+                            Visibility::default(),
+                        ))
+                        .with_children(|bomb| {
+                            // An orange carrot, point down...
+                            bomb.spawn((
+                                Mesh3d(assets.thorn_shape.clone()),
+                                MeshMaterial3d(assets.orange.clone()),
+                                Transform::from_rotation(Quat::from_rotation_x(
+                                    std::f32::consts::PI,
+                                )),
+                            ));
+                            // ...with a green leafy top.
+                            bomb.spawn((
+                                Mesh3d(assets.eye_shape.clone()),
+                                MeshMaterial3d(assets.thorn_gray.clone()),
+                                Transform::from_xyz(0.0, 0.45, 0.0),
+                            ));
+                        });
+                }
             }
         }
 
         // Did we take away ALL its hearts? WE WIN!
         if boss.hearts <= 0 {
-            let (message, next_level) = match boss.kind {
-                // Beat BAD BAT → you won the whole game!
-                BossKind::BadBat => ("YOU WIN THE WHOLE GAME!", 1),
-                // Beat any other boss → on to the next stage!
-                _ => ("BOSS DEFEATED!", game.level + 1),
+            // A PERFECT fight — zero deaths — earns the
+            // spinning STAR CHARM...
+            let perfect = stats.deaths == 0;
+            if perfect {
+                awards.star = true;
+            }
+
+            // Where do we go next?
+            let normal_next = match boss.kind {
+                BossKind::BadBat => 1, // beat the game!
+                _ => game.level + 1,
             };
+
+            let (message, next_level) = if boss.kind == BossKind::EvilBunny {
+                // Bonus fight over — back to the adventure.
+                ("YOU BEAT THE EVIL BUNNY!", game.bonus_return)
+            } else if perfect && book.find_boss("evilbunny").is_some() {
+                // ...and a perfect BOSS fight unlocks the
+                // SECRET EVIL BUNNY fight right now!
+                game.bonus_return = normal_next;
+                (
+                    "PERFECT! SECRET BOSS!",
+                    book.find_boss("evilbunny").unwrap(),
+                )
+            } else if boss.kind == BossKind::BadBat {
+                ("YOU WIN THE WHOLE GAME!", 1)
+            } else {
+                ("BOSS DEFEATED!", normal_next)
+            };
+
             start_party(
                 &mut commands,
                 &assets,
@@ -1797,6 +2053,61 @@ fn move_boss_shots(
                     boss.hearts -= 1;
                 }
             }
+        }
+    }
+}
+
+// ======================================================
+//  CARROT BOMBS — they arc through the air, tumbling,
+//  and BREAK THE ROAD where they land! The hole then
+//  slides toward you like any obstacle — JUMP IT!
+// ======================================================
+
+fn move_carrot_bombs(
+    mut commands: Commands,
+    time: Res<Time>,
+    party: Res<Party>,
+    sounds: Res<AssetServer>,
+    assets: Res<GameAssets>,
+    mut bombs: Query<(Entity, &mut Transform, &mut CarrotBomb)>,
+) {
+    if party.happening {
+        return;
+    }
+
+    for (bomb_id, mut position, mut bomb) in &mut bombs {
+        // The same jumping math as the bunny: gravity
+        // pulls the bomb's up-speed down every frame,
+        // so it flies in a beautiful arc.
+        bomb.velocity.y -= GRAVITY * 0.5 * time.delta_secs();
+        position.translation += bomb.velocity * time.delta_secs();
+        // Tumble end over end as it flies!
+        position.rotate_x(6.0 * time.delta_secs());
+
+        // Did it hit the road? BOOM — the road breaks!
+        if position.translation.y <= 0.3 {
+            commands.spawn((
+                AudioPlayer::new(sounds.load("boom.wav")),
+                PlaybackSettings::DESPAWN,
+            ));
+            // The hole: a dark gap in the rainbow. It wears
+            // BossShot so it slides toward the bunny and
+            // counts as a dodge when it passes — jumping
+            // holes is how you beat the Evil Bunny!
+            commands.spawn((
+                LevelStuff,
+                Hole,
+                BossShot {
+                    velocity: Vec3::new(0.0, 0.0, 8.0),
+                },
+                Mesh3d(assets.cube_shape.clone()),
+                MeshMaterial3d(assets.ink.clone()),
+                Transform::from_xyz(0.0, 0.05, position.translation.z)
+                    // Squash the cube flat and stretch it
+                    // across the road: a hole-shaped patch.
+                    .with_scale(Vec3::new(2.6, 0.05, 1.2)),
+            ));
+            commands.entity(bomb_id).despawn();
         }
     }
 }
@@ -1862,16 +2173,26 @@ fn fireball_embers(
 
 fn check_for_crash(
     mut commands: Commands,
+    time: Res<Time>,
     sounds: Res<AssetServer>,
     mut score: ResMut<Score>,
     party: Res<Party>,
     mut game: ResMut<Game>,
+    mut stats: ResMut<RunStats>,
     mut bunnies: Query<(&mut Transform, &mut Bunny), Without<LevelStuff>>,
     deadly_things: Query<&Transform, (With<Deadly>, Without<Bunny>)>,
+    holes: Query<&Transform, (With<Hole>, Without<Bunny>)>,
     platforms: Query<(&Transform, &Platform), Without<Bunny>>,
 ) {
     // Nothing can hurt you during the party!
     if party.happening {
+        return;
+    }
+
+    // A brief moment of safety right after a restart,
+    // so one crash never counts as two.
+    if stats.grace > 0.0 {
+        stats.grace -= time.delta_secs();
         return;
     }
 
@@ -1887,6 +2208,17 @@ fn check_for_crash(
             // COMPARING: if the distance is SMALLER than 1.0,
             // they are touching. CRASH!
             if distance < CRASH_DISTANCE {
+                crashed = true;
+            }
+        }
+
+        // Broken road! If a hole is under our feet AND
+        // we're standing on the ground... we fall in!
+        // (Jump over holes — never stand on them.)
+        for hole in &holes {
+            let hole_here = hole.translation.z.abs() < 0.8;
+            let on_the_ground = bunny_position.translation.y < 0.6;
+            if hole_here && on_the_ground {
                 crashed = true;
             }
         }
@@ -1909,8 +2241,10 @@ fn check_for_crash(
                 PlaybackSettings::DESPAWN,
             ));
 
-            // The bunny died! Score to zero, bunny back on
-            // the ground, and rebuild this same level.
+            // The bunny died! Count it (no more perfect
+            // run this level), score to zero, bunny back
+            // on the ground, and rebuild this same level.
+            stats.deaths += 1;
             score.points = 0.0;
             bunny_position.translation.y = 0.5;
             bunny.up_speed = 0.0;
@@ -1931,6 +2265,8 @@ fn check_for_finish(
     font: Res<GameFont>,
     mut party: ResMut<Party>,
     game: Res<Game>,
+    stats: Res<RunStats>,
+    mut awards: ResMut<Awards>,
     gates: Query<&Transform, With<FinishLine>>,
 ) {
     if party.happening {
@@ -1940,6 +2276,11 @@ fn check_for_finish(
     for gate in &gates {
         // Has the gate slid all the way to the bunny (z = 0)?
         if gate.translation.z >= 0.0 {
+            // A PERFECT run — the whole level, zero deaths
+            // — earns a golden trophy for the corner!
+            if stats.deaths == 0 {
+                awards.trophies += 1;
+            }
             start_party(
                 &mut commands,
                 &assets,
@@ -2080,6 +2421,130 @@ fn end_the_party(
 
         // Order up the next level!
         game.switch_to = Some(party.next_level);
+    }
+}
+
+// ======================================================
+//  THE TROPHY SHELF — one little golden 3D trophy under
+//  the score for every level beaten without dying. They
+//  ride along stuck to the camera, like the background!
+// ======================================================
+
+fn sync_trophies(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    assets: Res<GameAssets>,
+    awards: Res<Awards>,
+    cameras: Query<Entity, With<MainCamera>>,
+    trophies: Query<(), With<Trophy>>,
+) {
+    // How many trophies are on the shelf right now?
+    let shown = trophies.iter().count();
+    if shown >= awards.trophies {
+        return; // shelf is up to date!
+    }
+
+    for camera in &cameras {
+        commands.entity(camera).with_children(|shelf| {
+            // Add the missing trophies, left to right.
+            for i in shown..awards.trophies {
+                shelf
+                    .spawn((
+                        Trophy,
+                        PlayStuff,
+                        // Parked near the top-left of the
+                        // view, under the score words.
+                        Transform::from_xyz(-1.85 + i as f32 * 0.28, 0.72, -3.0)
+                            .with_scale(Vec3::splat(0.16)),
+                        Visibility::default(),
+                    ))
+                    .with_children(|trophy| {
+                        // The base...
+                        trophy.spawn((
+                            Mesh3d(meshes.add(Cuboid::new(0.5, 0.14, 0.5))),
+                            MeshMaterial3d(assets.gold.clone()),
+                            Transform::from_xyz(0.0, -0.4, 0.0),
+                        ));
+                        // ...the stem...
+                        trophy.spawn((
+                            Mesh3d(meshes.add(Cuboid::new(0.14, 0.3, 0.14))),
+                            MeshMaterial3d(assets.gold.clone()),
+                            Transform::from_xyz(0.0, -0.2, 0.0),
+                        ));
+                        // ...and the cup: an upside-down cone!
+                        trophy.spawn((
+                            Mesh3d(meshes.add(Cone::new(0.32, 0.5))),
+                            MeshMaterial3d(assets.gold.clone()),
+                            Transform::from_xyz(0.0, 0.2, 0.0)
+                                .with_rotation(Quat::from_rotation_x(std::f32::consts::PI)),
+                        ));
+                    });
+            }
+        });
+    }
+}
+
+// ======================================================
+//  THE STAR CHARM — beat a boss without dying and a
+//  golden star spins over the bunny's head, forever!
+// ======================================================
+
+fn attach_star(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    assets: Res<GameAssets>,
+    awards: Res<Awards>,
+    bunnies: Query<Entity, With<Bunny>>,
+    stars: Query<(), With<StarCharm>>,
+) {
+    // Only if we've EARNED it, and only one star!
+    if !awards.star || !stars.is_empty() {
+        return;
+    }
+
+    for bunny in &bunnies {
+        commands.entity(bunny).with_children(|head| {
+            head.spawn((
+                StarCharm,
+                Transform::from_xyz(0.0, 1.85, -0.3).with_scale(Vec3::splat(0.5)),
+                Visibility::default(),
+            ))
+            .with_children(|star| {
+                // A star = a golden middle with 5 golden
+                // points around it — cos & sin circle
+                // math, one more time!
+                star.spawn((
+                    Mesh3d(meshes.add(Sphere::new(0.14))),
+                    MeshMaterial3d(assets.gold.clone()),
+                    Transform::from_xyz(0.0, 0.0, 0.0),
+                ));
+                for i in 0..5 {
+                    // Start at the top (1.57 = a quarter
+                    // turn) and step a fifth of the circle.
+                    let angle = 1.57 + i as f32 * 6.28 / 5.0;
+                    star.spawn((
+                        Mesh3d(meshes.add(Cone::new(0.09, 0.3))),
+                        MeshMaterial3d(assets.gold.clone()),
+                        Transform::from_xyz(angle.cos() * 0.2, angle.sin() * 0.2, 0.0)
+                            // Point each spike outward.
+                            .with_rotation(Quat::from_rotation_z(angle - 1.57)),
+                    ));
+                }
+            });
+        });
+    }
+}
+
+// ======================================================
+//  Charms spin slowly so they catch the light.
+// ======================================================
+
+fn spin_charms(
+    time: Res<Time>,
+    mut charms: Query<&mut Transform, Or<(With<StarCharm>, With<Trophy>)>>,
+) {
+    for mut charm in &mut charms {
+        charm.rotate_y(2.0 * time.delta_secs());
     }
 }
 
