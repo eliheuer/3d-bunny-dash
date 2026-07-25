@@ -598,6 +598,10 @@ fn build_the_world(
     // 3. The FILL light: a gentler sun from the OTHER
     //    side, with no shadows — it plays the part of
     //    light bouncing back up off the ground.
+    //    (Only on real computers: the web's graphics API
+    //    allows just ONE sun, so there the ambient light
+    //    below does the fill light's job instead.)
+    #[cfg(not(target_arch = "wasm32"))]
     commands.spawn((
         DirectionalLight {
             illuminance: 2_500.0,
@@ -613,9 +617,15 @@ fn build_the_world(
             MainCamera,
             Camera3d::default(),
             // The soft glow-from-everywhere ambient light.
+            // (Brighter on the web, where it must also do
+            // the missing fill light's job.)
             AmbientLight {
                 color: Color::srgb(0.9, 0.9, 1.0), // a whisper of sky blue
-                brightness: 400.0,
+                brightness: if cfg!(target_arch = "wasm32") {
+                    750.0
+                } else {
+                    400.0
+                },
                 ..default()
             },
             action_camera(),
