@@ -1262,10 +1262,20 @@ fn move_level(
 
     let speed = book.get(game.level).speed;
 
+    // Boss stages have no finish line, so their obstacles
+    // LOOP: when a piece slides past the bunny, it teleports
+    // 90 back down the road and comes around again — the
+    // obstacle course runs for as long as the fight does!
+    let is_boss_fight = !book.get(game.level).boss.is_empty();
+
     for mut position in &mut pieces {
         // MOVING MATH again: new spot = old spot + speed × time.
         // z gets BIGGER, which means "coming toward the camera".
         position.translation.z = position.translation.z + speed * time.delta_secs();
+
+        if is_boss_fight && position.translation.z > 10.0 {
+            position.translation.z = position.translation.z - 90.0;
+        }
     }
 }
 
@@ -1379,10 +1389,17 @@ fn boss_fight(
                 position.translation.x = (time.elapsed_secs() * 0.9).sin() * 2.5;
             }
             // BAD BAT swoops EVERY which way — two different
-            // waves at once, sideways AND up-down. Tricky!
+            // waves at once, sideways AND up-down. And the
+            // more hearts he loses, the FASTER he swoops.
+            // He's furious!
             BossKind::BadBat => {
-                position.translation.x = (time.elapsed_secs() * 1.3).sin() * 3.0;
-                position.translation.y = 3.0 + (time.elapsed_secs() * 2.1).sin() * 1.3;
+                // rage counts up as hearts count down: 0 at
+                // full health, then 1, 2, 3 as he gets mad.
+                let rage = (BOSS_HEARTS + 1 - boss.hearts).max(0) as f32;
+                let speed_up = 1.0 + rage * 0.35;
+                position.translation.x = (time.elapsed_secs() * 1.3 * speed_up).sin() * 3.0;
+                position.translation.y =
+                    3.0 + (time.elapsed_secs() * 2.1 * speed_up).sin() * 1.3;
             }
         }
 
@@ -1445,14 +1462,14 @@ fn boss_fight(
                             )),
                     ));
                 }
-                // BAD BAT has TWO attacks and takes turns!
-                // REMAINDER MATH again: count % 2 is 0,
-                // then 1, then 0, then 1... even, odd!
+                // BAD BAT has THREE attacks and cycles
+                // through them! REMAINDER MATH again:
+                // count % 3 goes 0, 1, 2, 0, 1, 2...
                 BossKind::BadBat => {
                     let mouth = position.translation + Vec3::new(0.0, -0.2, 0.8);
                     let aim_at = Vec3::new(0.0, 0.5, 0.0);
 
-                    if boss.attack_count % 2 == 0 {
+                    if boss.attack_count % 3 == 0 {
                         // Even turns: the LASER — long, glowing,
                         // and FAST (speed 15!). PEW!
                         let velocity = (aim_at - mouth).normalize() * 15.0;
@@ -1479,8 +1496,8 @@ fn boss_fight(
                                     velocity.normalize(),
                                 )),
                         ));
-                    } else {
-                        // Odd turns: the SOUND WAVE — a big
+                    } else if boss.attack_count % 3 == 1 {
+                        // Second turn: the SOUND WAVE — a big
                         // purple ring of noise, slower than
                         // the laser but bigger! WUBWUBWUB!
                         let velocity = (aim_at - mouth).normalize() * 8.0;
@@ -1510,6 +1527,34 @@ fn boss_fight(
                                     velocity.normalize(),
                                 )),
                         ));
+                    } else {
+                        // Third turn: FIRE! A fan of THREE
+                        // fireballs — one at you, one a bit
+                        // left, one a bit right — so there's
+                        // nowhere lazy to stand. FWOOSH!
+                        commands.spawn((
+                            AudioPlayer::new(sounds.load("fire.wav")),
+                            PlaybackSettings::DESPAWN,
+                        ));
+                        for spread in [-1.0f32, 0.0, 1.0] {
+                            // Each fireball aims at a spot
+                            // 2.5 apart: left, middle, right.
+                            let target = aim_at + Vec3::new(spread * 2.5, 0.0, 0.0);
+                            let velocity = (target - mouth).normalize() * 10.0;
+
+                            commands.spawn((
+                                LevelStuff,
+                                Deadly,
+                                BossShot { velocity },
+                                Mesh3d(meshes.add(Sphere::new(0.32))),
+                                MeshMaterial3d(materials.add(StandardMaterial {
+                                    base_color: ORANGE,
+                                    emissive: LinearRgba::new(5.0, 2.0, 0.3, 1.0), // burning glow!
+                                    ..default()
+                                })),
+                                Transform::from_translation(mouth),
+                            ));
+                        }
                     }
                 }
             }

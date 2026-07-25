@@ -305,3 +305,13 @@ level 12 Bad Bat
 boss bat
 speed 8
 finish 0
+spike 18
+cube 28
+spike 39
+cube 50
+spike 61
+spike 62
+cube 73
+spike 84
+cube 95
+spike 105
