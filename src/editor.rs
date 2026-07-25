@@ -42,6 +42,9 @@ pub struct Editor {
     /// A little message like "SAVED!", and its countdown.
     message: String,
     message_timer: f32,
+    /// Counts down between steps while an arrow key is
+    /// HELD, so the cursor can zoom along the road.
+    move_timer: f32,
 }
 
 /// The sticker for the editor's own things
@@ -89,6 +92,7 @@ impl Plugin for EditorPlugin {
             needs_redraw: true,
             message: String::new(),
             message_timer: 0.0,
+            move_timer: 0.0,
         })
         .add_systems(OnEnter(Screen::Editor), open_editor)
         .add_systems(OnExit(Screen::Editor), close_editor)
@@ -119,17 +123,18 @@ fn open_editor(
     // Lock the level we're opening onto the grid.
     snap_level_to_grid(book.get_mut(editor.level));
 
-    // ---- THE GRID OVERLAY ----
-    // A line across the road at every whole-number spot,
-    // so you can SEE the grid you're snapping to — in the
-    // same glowing green as the cursor, so the whole grid
-    // reads as one tool.
-    let grid_green = materials.add(StandardMaterial {
-        base_color: Color::srgba(0.2, 1.0, 0.3, 0.6),
-        alpha_mode: AlphaMode::Blend, // see-through!
-        unlit: true,                  // ignore shadows and sun
+    // One glowing green for EVERYTHING the editor draws —
+    // the grid lines and the cursor share this exact
+    // material, so they always match.
+    let green_glow = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 1.0, 0.3),
+        emissive: LinearRgba::new(0.4, 3.0, 0.6, 1.0), // GLOW!
         ..default()
     });
+
+    // ---- THE GRID OVERLAY ----
+    // A line across the road at every cell edge, so you
+    // can SEE the grid you're snapping to.
     let line_shape = meshes.add(Cuboid::new(8.0, 0.02, 0.06));
 
     // The lines sit at the halfway points (5.5, 6.5, 7.5…)
@@ -140,7 +145,7 @@ fn open_editor(
         commands.spawn((
             EditorStuff,
             Mesh3d(line_shape.clone()),
-            MeshMaterial3d(grid_green.clone()),
+            MeshMaterial3d(green_glow.clone()),
             Transform::from_xyz(0.0, 0.02, -(boundary as f32 - 0.5)),
         ));
     }
@@ -151,11 +156,6 @@ fn open_editor(
     // A box has 12 edges — 4 standing up, 4 across the
     // top, 4 across the bottom — and we draw each edge
     // as a very skinny glowing green stick.
-    let green_glow = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.2, 1.0, 0.3),
-        emissive: LinearRgba::new(0.4, 3.0, 0.6, 1.0), // GLOW!
-        ..default()
-    });
     // The box is 1.0 wide (one cell!) and 5.0 tall, so its
     // edges sit half of that from the middle: 0.5 out,
     // 2.5 up and down.
@@ -301,6 +301,7 @@ fn close_editor(
 
 fn editor_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
     mut editor: ResMut<Editor>,
     mut book: ResMut<LevelBook>,
     mut next_screen: ResMut<NextState<Screen>>,
@@ -308,12 +309,38 @@ fn editor_keys(
     // ---- Gliding along the road (the arrow keys) ----
     // Right or Up moves farther down the road,
     // Left or Down brings it back — whichever feels right!
-    if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::ArrowUp) {
-        editor.cursor += GRID_STEP;
+    // A quick tap moves ONE cell. HOLD the key and after
+    // a short pause the cursor zooms along, one cell
+    // every 0.06 seconds!
+    let going_far =
+        keyboard.pressed(KeyCode::ArrowRight) || keyboard.pressed(KeyCode::ArrowUp);
+    let going_near =
+        keyboard.pressed(KeyCode::ArrowLeft) || keyboard.pressed(KeyCode::ArrowDown);
+
+    if going_far || going_near {
+        let step = if going_far { GRID_STEP } else { -GRID_STEP };
+        let just_tapped = keyboard.any_just_pressed([
+            KeyCode::ArrowRight,
+            KeyCode::ArrowUp,
+            KeyCode::ArrowLeft,
+            KeyCode::ArrowDown,
+        ]);
+
+        if just_tapped {
+            // The first press: move once, then wait a
+            // moment before zooming starts.
+            editor.cursor += step;
+            editor.move_timer = 0.3;
+        } else {
+            // Still holding: count down, step, repeat!
+            editor.move_timer -= time.delta_secs();
+            if editor.move_timer <= 0.0 {
+                editor.cursor += step;
+                editor.move_timer = 0.06;
+            }
+        }
     }
-    if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::ArrowDown) {
-        editor.cursor -= GRID_STEP;
-    }
+
     // Keep the cursor on the road (between 6 and 240)...
     editor.cursor = editor.cursor.clamp(6.0, 240.0);
     // ...and snap it to a whole number, so every piece
