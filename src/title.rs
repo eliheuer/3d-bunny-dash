@@ -169,23 +169,6 @@ fn open_title(
     ));
     commands.spawn((
         TitleStuff,
-        Text::new("HOP! JUMP! DASH!"),
-        TextFont {
-            font: font.0.clone(),
-            font_size: 48.0,
-            ..default()
-        },
-        TextColor(crate::PINK),
-        TextLayout::new_with_justify(Justify::Center),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Percent(17.0),
-            width: Val::Percent(100.0),
-            ..default()
-        },
-    ));
-    commands.spawn((
-        TitleStuff,
         Text::new("[1] PLAY        [2] SETTINGS        [3] LEVEL EDITOR"),
         TextFont {
             font: font.0.clone(),
