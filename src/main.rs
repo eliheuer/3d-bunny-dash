@@ -11,12 +11,15 @@
 //!   * If you die, the level starts over. Instantly.
 //!   * Reach the GOLDEN FINISH LINE to beat the level —
 //!     fireworks! — and move on to the NEXT level.
-//!   * Levels get faster... and level 4 is THE BOSS!
+//!   * Level 4 is the BIG RED BOSS... but that's only
+//!     the FIRST boss. After more levels, level 7 is
+//!     the FINAL boss: THE CURSED THORN — a spiky rose
+//!     in a flower pot that shoots thorns at you!
 //!
-//! THE BOSS FIGHT:
-//!   The boss throws bouncing balls at you. Jump over
-//!   them! Every 3 balls you dodge, he loses a heart.
-//!   Take all 3 hearts and YOU WIN THE WHOLE GAME!
+//! BOSS FIGHTS:
+//!   Bosses shoot things at you — jump and dodge! Every
+//!   3 shots you dodge, the boss loses a heart. Take all
+//!   3 hearts to win the fight!
 //!
 //! THE MATH YOU WILL LEARN:
 //!   * ADDING     : position = position + speed
@@ -68,6 +71,7 @@ pub enum Piece {
     Spike,         // orange cone on the ground — JUMP!
     Cube,          // purple platform cube — land on top, or jump over!
     TallCube,      // TWO cubes high! Climb up from a normal cube!
+    TripleCube,    // THREE cubes high! Climb up from a tall cube!
     CubeWithSpike, // a cube with a spike hat — do NOT land here!
     SkySpike,      // blue upside-down cone in the air — DON'T jump!
     BadGuy,        // red bouncing ball — jump over him!
@@ -120,18 +124,27 @@ struct Bouncing;
 #[derive(Component)]
 struct Ear;
 
-/// THE BOSS! He remembers his hearts and his throwing.
-#[derive(Component)]
-struct Boss {
-    hearts: i32,
-    throw_timer: f32,
-    balls_dodged: i32,
+/// Which boss is this?
+#[derive(Clone, Copy, PartialEq)]
+enum BossKind {
+    BigRed,      // the first boss: a giant angry ball
+    CursedThorn, // the FINAL boss: a spiky rose in a pot!
 }
 
-/// A ball the boss threw at you!
+/// A BOSS! It remembers its hearts and its throwing.
 #[derive(Component)]
-struct BossBall {
-    speed: f32,
+struct Boss {
+    kind: BossKind,
+    hearts: i32,
+    throw_timer: f32,
+    shots_dodged: i32,
+}
+
+/// Something a boss threw at you — a ball or a thorn!
+/// It remembers which way it is flying.
+#[derive(Component)]
+struct BossShot {
+    velocity: Vec3,
 }
 
 /// One little glowing ball of firework spark!
@@ -230,7 +243,7 @@ fn main() {
                 spin_finish_line,
                 bounce_bad_guys,
                 boss_fight,
-                move_boss_balls,
+                move_boss_shots,
                 check_for_crash,
                 check_for_finish,
                 sparkle_fireworks,
@@ -457,6 +470,20 @@ fn switch_level(
                     Transform::from_xyz(0.0, CUBE_SIZE, start_z),
                 ));
             }
+            // A TRIPLE-TALL cube! Only reachable from a
+            // tall cube. Up here you can see everything!
+            Piece::TripleCube => {
+                commands.spawn((
+                    LevelStuff,
+                    Scrolls,
+                    Platform {
+                        top: CUBE_SIZE * 3.0,
+                    },
+                    Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 3.0, CUBE_SIZE))),
+                    MeshMaterial3d(purple.clone()),
+                    Transform::from_xyz(0.0, CUBE_SIZE * 1.5, start_z),
+                ));
+            }
             // A cube wearing a spike hat. Do NOT land on this one!
             Piece::CubeWithSpike => {
                 commands.spawn((
@@ -521,8 +548,8 @@ fn switch_level(
         }
     }
 
-    if new_level == levels::LAST_LEVEL {
-        // ---------- THE BOSS LEVEL! ----------
+    if new_level == levels::FIRST_BOSS {
+        // ---------- THE BIG RED BOSS! ----------
         // A GIANT angry ball floats ahead and throws
         // bouncing balls at you. He does not scroll —
         // he just hangs there, being enormous and rude.
@@ -530,9 +557,10 @@ fn switch_level(
             .spawn((
                 LevelStuff,
                 Boss {
+                    kind: BossKind::BigRed,
                     hearts: BOSS_HEARTS,
                     throw_timer: 0.0,
-                    balls_dodged: 0,
+                    shots_dodged: 0,
                 },
                 Mesh3d(meshes.add(Sphere::new(1.4))),
                 MeshMaterial3d(red.clone()),
@@ -556,6 +584,86 @@ fn switch_level(
                     Mesh3d(meshes.add(Cone::new(0.5, 0.7))),
                     MeshMaterial3d(gold.clone()),
                     Transform::from_xyz(0.0, 1.5, 0.0),
+                ));
+            });
+    } else if new_level == levels::FINAL_BOSS {
+        // ---------- THE CURSED THORN! ----------
+        // The FINAL boss: a spooky rose growing out of a
+        // flower pot. It slides side to side and shoots
+        // THORNS at you. Dodge them all to win the game!
+        let brown = materials.add(Color::srgb(0.5, 0.3, 0.15));
+        let stem_green = materials.add(Color::srgb(0.2, 0.55, 0.2));
+        let rose_pink = materials.add(Color::srgb(1.0, 0.2, 0.5));
+        let thorn_gray = materials.add(Color::srgb(0.45, 0.45, 0.4));
+
+        commands
+            .spawn((
+                LevelStuff,
+                Boss {
+                    kind: BossKind::CursedThorn,
+                    hearts: BOSS_HEARTS,
+                    throw_timer: 0.0,
+                    shots_dodged: 0,
+                },
+                Transform::from_xyz(0.0, 0.0, -16.0),
+                Visibility::default(),
+            ))
+            .with_children(|plant| {
+                // The flower pot.
+                plant.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(1.6, 1.1, 1.6))),
+                    MeshMaterial3d(brown.clone()),
+                    Transform::from_xyz(0.0, 0.55, 0.0),
+                ));
+                // The tall green stem growing out of it.
+                plant.spawn((
+                    Mesh3d(meshes.add(Capsule3d::new(0.16, 2.4))),
+                    MeshMaterial3d(stem_green.clone()),
+                    Transform::from_xyz(0.0, 2.3, 0.0),
+                ));
+                // Sharp thorns sticking out of the stem,
+                // pointing left and right, one per height.
+                for i in 0..4 {
+                    // Thorn 0 points left, 1 right, 2 left...
+                    // (i % 2 tells us: even or odd?)
+                    let side = if i % 2 == 0 { -1.0 } else { 1.0 };
+                    let height = 1.4 + i as f32 * 0.55;
+                    plant.spawn((
+                        Mesh3d(meshes.add(Cone::new(0.14, 0.5))),
+                        MeshMaterial3d(thorn_gray.clone()),
+                        Transform::from_xyz(side * 0.35, height, 0.0)
+                            // Tip the thorn sideways (a quarter
+                            // turn is about 1.57 radians).
+                            .with_rotation(Quat::from_rotation_z(side * -1.57)),
+                    ));
+                }
+                // The evil rose on top: a yellow middle...
+                plant.spawn((
+                    Mesh3d(meshes.add(Sphere::new(0.3))),
+                    MeshMaterial3d(materials.add(Color::srgb(1.0, 0.85, 0.2))),
+                    Transform::from_xyz(0.0, 3.7, 0.3),
+                ));
+                // ...with 6 pink petals in a circle around it.
+                // cos & sin place them around the circle,
+                // just like the fireworks!
+                for i in 0..6 {
+                    let angle = i as f32 * 6.28 / 6.0;
+                    plant.spawn((
+                        Mesh3d(meshes.add(Sphere::new(0.28))),
+                        MeshMaterial3d(rose_pink.clone()),
+                        Transform::from_xyz(angle.cos() * 0.5, 3.7 + angle.sin() * 0.5, 0.15),
+                    ));
+                }
+                // Two angry eyes on the flower, of course.
+                plant.spawn((
+                    Mesh3d(meshes.add(Sphere::new(0.09))),
+                    MeshMaterial3d(white.clone()),
+                    Transform::from_xyz(-0.12, 3.75, 0.56),
+                ));
+                plant.spawn((
+                    Mesh3d(meshes.add(Sphere::new(0.09))),
+                    MeshMaterial3d(white.clone()),
+                    Transform::from_xyz(0.12, 3.75, 0.56),
                 ));
             });
     } else {
@@ -766,75 +874,125 @@ fn boss_fight(
     }
 
     for (mut boss, mut position) in &mut bosses {
-        // The boss floats up and down menacingly (wave math!).
-        position.translation.y = 2.2 + (time.elapsed_secs() * 1.5).sin() * 0.4;
+        // Each boss moves in its own spooky way (wave math!).
+        match boss.kind {
+            // The Big Red Boss floats up and down menacingly.
+            BossKind::BigRed => {
+                position.translation.y = 2.2 + (time.elapsed_secs() * 1.5).sin() * 0.4;
+            }
+            // The Cursed Thorn slides SIDE TO SIDE in its
+            // pot, so its thorns come at you from angles!
+            BossKind::CursedThorn => {
+                position.translation.x = (time.elapsed_secs() * 0.9).sin() * 2.5;
+            }
+        }
 
-        // Count up to the next throw. The FEWER hearts he
-        // has left, the FASTER he throws. He's mad!
+        // Count up to the next throw. The FEWER hearts
+        // left, the FASTER it throws. Bosses get mad!
         boss.throw_timer += time.delta_secs();
         let time_between_throws = 0.8 + boss.hearts as f32 * 0.5;
 
         if boss.throw_timer > time_between_throws {
             boss.throw_timer = 0.0;
 
-            // Throw a dark ball that rolls at the bunny!
-            commands.spawn((
-                LevelStuff,
-                Deadly,
-                BossBall { speed: 9.0 },
-                Mesh3d(meshes.add(Sphere::new(0.4))),
-                MeshMaterial3d(materials.add(Color::srgb(0.3, 0.0, 0.4))),
-                Transform::from_xyz(0.0, 0.4, position.translation.z),
-            ));
+            match boss.kind {
+                // The Big Red Boss throws a dark ball that
+                // rolls straight at the bunny.
+                BossKind::BigRed => {
+                    commands.spawn((
+                        LevelStuff,
+                        Deadly,
+                        BossShot {
+                            velocity: Vec3::new(0.0, 0.0, 9.0),
+                        },
+                        Mesh3d(meshes.add(Sphere::new(0.4))),
+                        MeshMaterial3d(materials.add(Color::srgb(0.3, 0.0, 0.4))),
+                        Transform::from_xyz(0.0, 0.4, position.translation.z),
+                    ));
+                }
+                // The Cursed Thorn shoots a THORN from its
+                // flower, AIMED at where the bunny stands!
+                BossKind::CursedThorn => {
+                    // The thorn starts up at the flower...
+                    let flower = position.translation + Vec3::new(0.0, 3.7, 0.3);
+                    // ...and flies toward the bunny's spot.
+                    // "normalize" keeps the direction but
+                    // makes its length exactly 1, so × 11
+                    // means "speed 11 in that direction".
+                    let aim_at = Vec3::new(0.0, 0.5, 0.0);
+                    let velocity = (aim_at - flower).normalize() * 11.0;
+
+                    commands.spawn((
+                        LevelStuff,
+                        Deadly,
+                        BossShot { velocity },
+                        Mesh3d(meshes.add(Cone::new(0.22, 0.8))),
+                        MeshMaterial3d(materials.add(Color::srgb(0.35, 0.4, 0.25))),
+                        Transform::from_translation(flower)
+                            // Point the thorn the way it flies!
+                            // (Cones point UP, so we rotate UP
+                            // to match the flight direction.)
+                            .with_rotation(Quat::from_rotation_arc(
+                                Vec3::Y,
+                                velocity.normalize(),
+                            )),
+                    ));
+                }
+            }
         }
 
-        // Did we take away ALL his hearts? WE WIN!
+        // Did we take away ALL its hearts? WE WIN!
         if boss.hearts <= 0 {
+            let (message, next_level) = match boss.kind {
+                // Beat the first boss → on to level 5!
+                BossKind::BigRed => ("BOSS DEFEATED!", levels::FIRST_BOSS + 1),
+                // Beat the FINAL boss → you won it all!
+                BossKind::CursedThorn => ("YOU WIN THE WHOLE GAME!", 1),
+            };
             start_party(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
                 &mut party,
-                "YOU WIN THE WHOLE GAME!",
-                1, // after the party, back to level 1!
+                message,
+                next_level,
             );
         }
     }
 }
 
 // ======================================================
-//  BOSS BALLS — they roll at you; dodge them to win!
+//  BOSS SHOTS — balls and thorns fly at you;
+//  dodge them to take the boss's hearts!
 // ======================================================
 
-fn move_boss_balls(
+fn move_boss_shots(
     mut commands: Commands,
     time: Res<Time>,
     party: Res<Party>,
-    mut balls: Query<(Entity, &mut Transform, &BossBall)>,
+    mut shots: Query<(Entity, &mut Transform, &BossShot)>,
     mut bosses: Query<&mut Boss>,
 ) {
     if party.happening {
         return;
     }
 
-    for (ball_id, mut position, ball) in &mut balls {
-        // Roll toward the bunny...
-        position.translation.z += ball.speed * time.delta_secs();
-        // ...spinning as it goes, like a rolling ball does.
-        position.rotate_x(ball.speed * time.delta_secs());
+    for (shot_id, mut position, shot) in &mut shots {
+        // Fly along! spot = spot + velocity × time.
+        position.translation += shot.velocity * time.delta_secs();
 
-        // If the ball rolled PAST the bunny, we DODGED it!
+        // If the shot flew PAST the bunny, we DODGED it!
         if position.translation.z > 6.0 {
-            commands.entity(ball_id).despawn();
+            commands.entity(shot_id).despawn();
 
             for mut boss in &mut bosses {
-                boss.balls_dodged += 1;
+                boss.shots_dodged += 1;
 
                 // REMAINDER MATH: "%" tells you what's left
                 // over after making groups. 6 % 3 = 0 means
                 // "6 makes perfect groups of 3" — so every
                 // 3rd dodge, the boss loses a heart!
-                if boss.balls_dodged % DODGES_PER_HEART == 0 {
+                if boss.shots_dodged % DODGES_PER_HEART == 0 {
                     boss.hearts -= 1;
                 }
             }
