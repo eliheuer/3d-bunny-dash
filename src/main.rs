@@ -1,25 +1,24 @@
 //! ======================================================
-//!        3-D  BUNNY  GEOMETRY  DASH
+//!   3-D BUNNY GEOMETRY DASH vs. THE CURSED THORN
 //! ======================================================
 //! A game about a pink bunny who runs forever and
 //! jumps over obstacles. Press ANY key (or SPACE) to jump!
+//!
+//! THE GAME HAS FOUR SCREENS:
+//!   * TITLE    — the big menu (press 1, 2, or 3!)
+//!   * PLAYING  — run, jump, dodge, WIN!
+//!   * SETTINGS — choose your starting level
+//!   * EDITOR   — build your own levels, like
+//!                Geometry Dash and Mario Maker!
 //!
 //! THE RULES (just like real Geometry Dash!):
 //!   * SPIKES kill you if you touch them at all.
 //!   * CUBES are PLATFORMS: you can LAND ON TOP of them,
 //!     but if you smack into the SIDE... you die!
 //!   * If you die, the level starts over. Instantly.
-//!   * Reach the GOLDEN FINISH LINE to beat the level —
-//!     fireworks! — and move on to the NEXT level.
-//!   * Level 4 is the BIG RED BOSS... but that's only
-//!     the FIRST boss. After more levels, level 7 is
-//!     the FINAL boss: THE CURSED THORN — a spiky rose
-//!     in a flower pot that shoots thorns at you!
-//!
-//! BOSS FIGHTS:
-//!   Bosses shoot things at you — jump and dodge! Every
-//!   3 shots you dodge, the boss loses a heart. Take all
-//!   3 hearts to win the fight!
+//!   * Reach the GOLDEN FINISH LINE to beat the level.
+//!   * Level 4 is the BIG RED BOSS, and level 7 is the
+//!     FINAL boss: THE CURSED THORN!
 //!
 //! THE MATH YOU WILL LEARN:
 //!   * ADDING     : position = position + speed
@@ -27,24 +26,26 @@
 //!   * DISTANCE   : how far apart two things are
 //!   * COMPARING  : is 2 smaller than 5?  (2 < 5 is true!)
 //!   * WAVES      : sine makes numbers wiggle up and down!
-//!   * REMAINDERS : 7 balls dodged, groups of 3 → 1 left over
+//!   * REMAINDERS : 7 dodged, groups of 3 → 1 left over
 
 use bevy::prelude::*;
 use bevy::render::render_resource::AsBindGroup;
 use bevy::shader::ShaderRef;
 
-// The level designs live in their own file: src/levels.rs
-mod levels;
+// The other chapters of our code:
+mod editor; // the level editor!
+mod levels; // reads and writes assets/levels.txt
+mod title; // the title screen and settings screen
+
+use levels::LevelBook;
 
 // ======================================================
 //  NUMBERS THAT CONTROL THE GAME  (try changing these!)
 // ======================================================
 
 /// ~~~ SECRET CHEAT CODE ~~~
-/// Which level the game starts on! Change this to jump
-/// straight to any level (1 to 7) — great for practicing
-/// a tricky level or visiting a boss. Put it back to 1
-/// when you want to play the whole adventure!
+/// Which level "Play" starts on! You can also change
+/// this inside the game on the SETTINGS screen.
 const STARTING_LEVEL: usize = 1;
 
 /// How strong the bunny's jump is.
@@ -57,20 +58,33 @@ const GRAVITY: f32 = 22.0;
 const CRASH_DISTANCE: f32 = 1.0;
 
 /// How big the platform cubes are (1.2 on every side).
-const CUBE_SIZE: f32 = 1.2;
+pub const CUBE_SIZE: f32 = 1.2;
 
 /// How long the fireworks party lasts between levels.
 const PARTY_SECONDS: f32 = 5.0;
 
-/// How many hearts the boss has.
+/// How many hearts each boss has.
 const BOSS_HEARTS: i32 = 3;
 
-/// Dodge this many boss balls to knock off one heart.
+/// Dodge this many boss shots to knock off one heart.
 const DODGES_PER_HEART: i32 = 3;
 
 // ======================================================
+//  THE SCREENS — which part of the game are we on?
+// ======================================================
+
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub enum Screen {
+    #[default]
+    Title,
+    Settings,
+    Playing,
+    Editor,
+}
+
+// ======================================================
 //  KINDS OF LEVEL PIECES — a menu to choose from!
-//  (The level lists in levels.rs are made of these.)
+//  (The level lists in assets/levels.txt use these.)
 // ======================================================
 
 #[derive(Clone, Copy)]
@@ -98,10 +112,14 @@ struct Bunny {
 }
 
 /// EVERYTHING that belongs to the current level wears
-/// this sticker, so we can sweep it all away in one go
-/// when the level restarts or changes.
+/// this sticker, so we can sweep it all away in one go.
 #[derive(Component)]
-struct LevelStuff;
+pub struct LevelStuff;
+
+/// Things that only exist while PLAYING (the bunny,
+/// the score words) — swept away when we leave.
+#[derive(Component)]
+struct PlayStuff;
 
 /// Things that slide along as the level scrolls.
 #[derive(Component)]
@@ -112,8 +130,7 @@ struct Scrolls;
 struct Deadly;
 
 /// Platform cubes: safe on TOP, deadly on the SIDE!
-/// Each one remembers how tall its top is, so the bunny
-/// knows how high to stand (normal cube: 1.2, tall: 2.4).
+/// Each one remembers how tall its top is.
 #[derive(Component)]
 struct Platform {
     top: f32,
@@ -130,6 +147,10 @@ struct Bouncing;
 /// The sticker for the bunny's ears, so they can flop!
 #[derive(Component)]
 struct Ear;
+
+/// The one and only camera (the background is its child).
+#[derive(Component)]
+pub struct MainCamera;
 
 /// Which boss is this?
 #[derive(Clone, Copy, PartialEq)]
@@ -148,7 +169,6 @@ struct Boss {
 }
 
 /// Something a boss threw at you — a ball or a thorn!
-/// It remembers which way it is flying.
 #[derive(Component)]
 struct BossShot {
     velocity: Vec3,
@@ -157,9 +177,7 @@ struct BossShot {
 /// One little glowing ball of firework spark!
 #[derive(Component)]
 struct Firework {
-    /// Which way (and how fast) this spark is flying.
     velocity: Vec3,
-    /// How many seconds of sparkle are left.
     life: f32,
 }
 
@@ -171,7 +189,7 @@ struct BigMessage;
 #[derive(Component)]
 struct ScoreText;
 
-/// The "Level 2  Boss: <3 <3 <3" words in the corner.
+/// The "Level 2" / boss hearts words in the corner.
 #[derive(Component)]
 struct LevelText;
 
@@ -188,9 +206,9 @@ struct Score {
 /// Which level we are on, and whether we need to build
 /// a new one. "Some(3)" means "please switch to level 3!"
 #[derive(Resource)]
-struct Game {
-    level: usize,
-    switch_to: Option<usize>,
+pub struct Game {
+    pub level: usize,
+    pub switch_to: Option<usize>,
 }
 
 /// Is the fireworks party happening?
@@ -202,11 +220,17 @@ struct Party {
     next_level: usize,
 }
 
+/// Choices you can change on the SETTINGS screen.
+#[derive(Resource)]
+pub struct Settings {
+    pub starting_level: usize,
+}
+
 // ======================================================
 //  THE LAVA LAMP BACKGROUND — a custom shader material!
 //  The real magic is in assets/lava_lamp.wgsl, a tiny
 //  program that runs on the GRAPHICS CARD and paints
-//  every dot of the background with wavy rainbow math.
+//  every dot of the background with wavy lava math.
 // ======================================================
 
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
@@ -226,11 +250,18 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(MaterialPlugin::<LavaLampMaterial>::default())
+        .add_plugins(title::TitlePlugin)
+        .add_plugins(editor::EditorPlugin)
+        .init_state::<Screen>()
+        // Read assets/levels.txt into the level book!
+        .insert_resource(levels::load_level_book())
         .insert_resource(Score { points: 0.0 })
+        .insert_resource(Settings {
+            starting_level: STARTING_LEVEL,
+        })
         .insert_resource(Game {
-            level: STARTING_LEVEL,
-            // Build the starting level right away!
-            switch_to: Some(STARTING_LEVEL),
+            level: 1,
+            switch_to: None,
         })
         .insert_resource(Party {
             happening: false,
@@ -239,7 +270,10 @@ fn main() {
         })
         // Run ONCE when the game starts:
         .add_systems(Startup, build_the_world)
-        // Run EVERY FRAME (about 60 times each second!).
+        // Run when we START and STOP playing:
+        .add_systems(OnEnter(Screen::Playing), start_playing)
+        .add_systems(OnExit(Screen::Playing), stop_playing)
+        // Run EVERY FRAME — but only while PLAYING!
         // ".chain()" means: run them in exactly this order.
         .add_systems(
             Update,
@@ -257,16 +291,17 @@ fn main() {
                 sparkle_fireworks,
                 end_the_party,
                 update_words,
+                back_to_menu,
             )
-                .chain(),
+                .chain()
+                .run_if(in_state(Screen::Playing)),
         )
         .run();
 }
 
 // ======================================================
 //  BUILD THE WORLD — the things that are ALWAYS there:
-//  ground, bunny, sun, camera, background, and words.
-//  (The level pieces get built by switch_level.)
+//  ground, sun, camera, and the lava lamp background.
 // ======================================================
 
 fn build_the_world(
@@ -275,34 +310,64 @@ fn build_the_world(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut lava: ResMut<Assets<LavaLampMaterial>>,
 ) {
-    // ---------- COLORS (mixed from red, green, blue) ----------
-    // Each number goes from 0.0 (none) to 1.0 (lots).
-    // PINK = lots of red + some green + some blue.
-    let pink = materials.add(Color::srgb(1.0, 0.4, 0.7));
-    let light_pink = materials.add(Color::srgb(1.0, 0.7, 0.85));
-    let green = materials.add(Color::srgb(0.3, 0.8, 0.4));
-    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
-
     // ---------- THE GROUND ----------
     // A big flat box: 8 wide, very long, and thin like a pancake.
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(8.0, 0.2, 300.0))),
-        MeshMaterial3d(green.clone()),
-        // Position is (x, y, z):  x = left/right,
-        // y = up/down,  z = toward you / away from you.
+        MeshMaterial3d(materials.add(Color::srgb(0.3, 0.8, 0.4))),
         Transform::from_xyz(0.0, -0.1, -50.0),
     ));
 
-    // ---------- THE BUNNY ----------
-    // We build the bunny out of simple shapes,
-    // like snapping building blocks together!
+    // ---------- THE SUN ----------
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 8_000.0,
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+
+    // ---------- THE CAMERA (with the background stuck on!) ----------
     commands
         .spawn((
-            Bunny { up_speed: 0.0 },
-            // The bunny starts at height y = 0.5 (sitting on the ground).
-            Transform::from_xyz(0.0, 0.5, 0.0),
-            Visibility::default(),
+            MainCamera,
+            Camera3d::default(),
+            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y),
         ))
+        .with_children(|camera| {
+            // The lava lamp background is a CHILD of the
+            // camera — like a poster taped WAY out in front
+            // of the lens — so wherever the camera goes,
+            // the background fills the whole screen!
+            camera.spawn((
+                Mesh3d(meshes.add(Rectangle::new(2400.0, 1000.0))),
+                MeshMaterial3d(lava.add(LavaLampMaterial {})),
+                Transform::from_xyz(0.0, 0.0, -600.0),
+            ));
+        });
+}
+
+// ======================================================
+//  SHARED SPAWN HELPERS — build a bunny or the thorn
+//  plant anywhere. The game AND the title screen use
+//  these, so we only write them once!
+// ======================================================
+
+/// Build a pink bunny out of simple shapes and put it
+/// wherever "place" says. Gives back the bunny's id.
+pub fn spawn_bunny_visual(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    place: Transform,
+) -> Entity {
+    let pink = materials.add(Color::srgb(1.0, 0.4, 0.7));
+    let light_pink = materials.add(Color::srgb(1.0, 0.7, 0.85));
+    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
+
+    commands
+        .spawn((place, Visibility::default()))
         .with_children(|bunny| {
             // Body: a round ball
             bunny.spawn((
@@ -316,8 +381,7 @@ fn build_the_world(
                 MeshMaterial3d(pink.clone()),
                 Transform::from_xyz(0.0, 0.55, -0.3),
             ));
-            // Two tall ears! They wear the Ear sticker
-            // so they can FLOP when we jump!
+            // Two tall ears that can FLOP when we jump!
             bunny.spawn((
                 Ear,
                 Mesh3d(meshes.add(Capsule3d::new(0.08, 0.5))),
@@ -336,42 +400,259 @@ fn build_the_world(
                 MeshMaterial3d(white.clone()),
                 Transform::from_xyz(0.0, 0.0, 0.55),
             ));
-        });
+        })
+        .id()
+}
 
-    // ---------- THE SUN ----------
-    commands.spawn((
-        DirectionalLight {
-            illuminance: 8_000.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
-    ));
+/// Build the Cursed Thorn plant: pot, stem, thorns, and
+/// the evil rose on top. Gives back the plant's id.
+pub fn spawn_thorn_plant(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    place: Transform,
+) -> Entity {
+    let brown = materials.add(Color::srgb(0.5, 0.3, 0.15));
+    let stem_green = materials.add(Color::srgb(0.2, 0.55, 0.2));
+    let rose_pink = materials.add(Color::srgb(1.0, 0.2, 0.5));
+    let thorn_gray = materials.add(Color::srgb(0.45, 0.45, 0.4));
+    let yellow = materials.add(Color::srgb(1.0, 0.85, 0.2));
+    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
 
-    // ---------- THE CAMERA (with the background stuck on!) ----------
     commands
-        .spawn((
-            Camera3d::default(),
-            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y),
-        ))
-        .with_children(|camera| {
-            // ---------- THE LAVA LAMP BACKGROUND ----------
-            // A giant wall painted by our shader program
-            // (see assets/lava_lamp.wgsl). It is a CHILD of
-            // the camera — like a poster taped WAY out in
-            // front of the lens — so no matter where the
-            // camera looks, the background fills the screen!
-            camera.spawn((
-                Mesh3d(meshes.add(Rectangle::new(2400.0, 1000.0))),
-                MeshMaterial3d(lava.add(LavaLampMaterial {})),
-                // 600 away, deeper than the whole level,
-                // so everything else draws in front of it.
-                Transform::from_xyz(0.0, 0.0, -600.0),
+        .spawn((place, Visibility::default()))
+        .with_children(|plant| {
+            // The flower pot.
+            plant.spawn((
+                Mesh3d(meshes.add(Cuboid::new(1.6, 1.1, 1.6))),
+                MeshMaterial3d(brown.clone()),
+                Transform::from_xyz(0.0, 0.55, 0.0),
             ));
-        });
+            // The tall green stem growing out of it.
+            plant.spawn((
+                Mesh3d(meshes.add(Capsule3d::new(0.16, 2.4))),
+                MeshMaterial3d(stem_green.clone()),
+                Transform::from_xyz(0.0, 2.3, 0.0),
+            ));
+            // Sharp thorns on the stem, pointing left and
+            // right, taking turns (i % 2: even or odd?).
+            for i in 0..4 {
+                let side = if i % 2 == 0 { -1.0 } else { 1.0 };
+                let height = 1.4 + i as f32 * 0.55;
+                plant.spawn((
+                    Mesh3d(meshes.add(Cone::new(0.14, 0.5))),
+                    MeshMaterial3d(thorn_gray.clone()),
+                    Transform::from_xyz(side * 0.35, height, 0.0)
+                        // Tip the thorn sideways (a quarter
+                        // turn is about 1.57 radians).
+                        .with_rotation(Quat::from_rotation_z(side * -1.57)),
+                ));
+            }
+            // The evil rose on top: a yellow middle...
+            plant.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.3))),
+                MeshMaterial3d(yellow.clone()),
+                Transform::from_xyz(0.0, 3.7, 0.3),
+            ));
+            // ...with 6 pink petals in a circle around it.
+            // cos & sin place them around the circle,
+            // just like the fireworks!
+            for i in 0..6 {
+                let angle = i as f32 * 6.28 / 6.0;
+                plant.spawn((
+                    Mesh3d(meshes.add(Sphere::new(0.28))),
+                    MeshMaterial3d(rose_pink.clone()),
+                    Transform::from_xyz(angle.cos() * 0.5, 3.7 + angle.sin() * 0.5, 0.15),
+                ));
+            }
+            // Two angry eyes on the flower, of course.
+            plant.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.09))),
+                MeshMaterial3d(white.clone()),
+                Transform::from_xyz(-0.12, 3.75, 0.56),
+            ));
+            plant.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.09))),
+                MeshMaterial3d(white.clone()),
+                Transform::from_xyz(0.12, 3.75, 0.56),
+            ));
+        })
+        .id()
+}
 
-    // ---------- THE CORNER WORDS ----------
+/// Build ONE level piece at one spot on the road.
+/// The game builds whole levels with this, and the
+/// LEVEL EDITOR uses it to show pieces as you place them!
+pub fn spawn_piece(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    piece: Piece,
+    start_z: f32,
+) {
+    let orange = materials.add(Color::srgb(1.0, 0.5, 0.1));
+    let purple = materials.add(Color::srgb(0.6, 0.2, 0.9));
+    let blue = materials.add(Color::srgb(0.2, 0.5, 1.0));
+    let red = materials.add(Color::srgb(0.9, 0.1, 0.1));
+    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
+    let spike_shape = meshes.add(Cone::new(0.6, 1.4));
+
+    match piece {
+        // Orange spike sitting on the ground. JUMP!
+        Piece::Spike => {
+            commands.spawn((
+                LevelStuff,
+                Scrolls,
+                Deadly,
+                Mesh3d(spike_shape.clone()),
+                MeshMaterial3d(orange.clone()),
+                Transform::from_xyz(0.0, 0.7, start_z),
+            ));
+        }
+        // Purple platform cube. Land on TOP — not the side!
+        Piece::Cube => {
+            commands.spawn((
+                LevelStuff,
+                Scrolls,
+                Platform { top: CUBE_SIZE },
+                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE))),
+                MeshMaterial3d(purple.clone()),
+                Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
+            ));
+        }
+        // A DOUBLE-TALL cube! Climb up from a normal cube.
+        Piece::TallCube => {
+            commands.spawn((
+                LevelStuff,
+                Scrolls,
+                Platform {
+                    top: CUBE_SIZE * 2.0,
+                },
+                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 2.0, CUBE_SIZE))),
+                MeshMaterial3d(purple.clone()),
+                Transform::from_xyz(0.0, CUBE_SIZE, start_z),
+            ));
+        }
+        // A TRIPLE-TALL cube! Only reachable from a tall one.
+        Piece::TripleCube => {
+            commands.spawn((
+                LevelStuff,
+                Scrolls,
+                Platform {
+                    top: CUBE_SIZE * 3.0,
+                },
+                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 3.0, CUBE_SIZE))),
+                MeshMaterial3d(purple.clone()),
+                Transform::from_xyz(0.0, CUBE_SIZE * 1.5, start_z),
+            ));
+        }
+        // A cube wearing a spike hat. Do NOT land on this one!
+        Piece::CubeWithSpike => {
+            commands.spawn((
+                LevelStuff,
+                Scrolls,
+                Platform { top: CUBE_SIZE },
+                Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE))),
+                MeshMaterial3d(purple.clone()),
+                Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
+            ));
+            commands.spawn((
+                LevelStuff,
+                Scrolls,
+                Deadly,
+                Mesh3d(spike_shape.clone()),
+                MeshMaterial3d(orange.clone()),
+                Transform::from_xyz(0.0, CUBE_SIZE + 0.7, start_z),
+            ));
+        }
+        // Blue upside-down spike FLOATING IN THE AIR.
+        // DON'T jump — run under it!
+        Piece::SkySpike => {
+            commands.spawn((
+                LevelStuff,
+                Scrolls,
+                Deadly,
+                Mesh3d(spike_shape.clone()),
+                MeshMaterial3d(blue.clone()),
+                Transform::from_xyz(0.0, 2.2, start_z)
+                    .with_rotation(Quat::from_rotation_x(std::f32::consts::PI)),
+            ));
+        }
+        // The RED BAD GUY! A ball that does little hops.
+        Piece::BadGuy => {
+            commands
+                .spawn((
+                    LevelStuff,
+                    Scrolls,
+                    Deadly,
+                    Bouncing,
+                    Mesh3d(meshes.add(Sphere::new(0.55))),
+                    MeshMaterial3d(red.clone()),
+                    Transform::from_xyz(0.0, 0.55, start_z),
+                    Visibility::default(),
+                ))
+                .with_children(|bad_guy| {
+                    bad_guy.spawn((
+                        Mesh3d(meshes.add(Sphere::new(0.12))),
+                        MeshMaterial3d(white.clone()),
+                        Transform::from_xyz(-0.2, 0.2, 0.45),
+                    ));
+                    bad_guy.spawn((
+                        Mesh3d(meshes.add(Sphere::new(0.12))),
+                        MeshMaterial3d(white.clone()),
+                        Transform::from_xyz(0.2, 0.2, 0.45),
+                    ));
+                });
+        }
+    }
+}
+
+// ======================================================
+//  STARTING AND STOPPING PLAY
+// ======================================================
+
+fn start_playing(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    settings: Res<Settings>,
+    the_editor: Res<editor::Editor>,
+    mut game: ResMut<Game>,
+    mut score: ResMut<Score>,
+    mut cameras: Query<&mut Transform, With<MainCamera>>,
+) {
+    // Point the camera at the action.
+    for mut camera in &mut cameras {
+        *camera =
+            Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y);
+    }
+
+    score.points = 0.0;
+
+    // Which level? Usually the settings choice — but if
+    // we came from the EDITOR's playtest button, play
+    // the level being edited!
+    let start = if the_editor.playtesting {
+        the_editor.level
+    } else {
+        settings.starting_level
+    };
+    game.switch_to = Some(start);
+
+    // Spawn the bunny, ready to run!
+    let bunny = spawn_bunny_visual(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        Transform::from_xyz(0.0, 0.5, 0.0),
+    );
+    commands
+        .entity(bunny)
+        .insert((Bunny { up_speed: 0.0 }, PlayStuff));
+
+    // The corner words.
     commands.spawn((
+        PlayStuff,
         ScoreText,
         Text::new("Score: 0"),
         TextFont {
@@ -387,6 +668,7 @@ fn build_the_world(
         },
     ));
     commands.spawn((
+        PlayStuff,
         LevelText,
         Text::new("Level 1"),
         TextFont {
@@ -403,9 +685,45 @@ fn build_the_world(
     ));
 }
 
+/// Sweep away everything play-related when we leave.
+fn stop_playing(
+    mut commands: Commands,
+    mut party: ResMut<Party>,
+    stuff: Query<
+        Entity,
+        Or<(
+            With<PlayStuff>,
+            With<LevelStuff>,
+            With<BigMessage>,
+            With<Firework>,
+        )>,
+    >,
+) {
+    party.happening = false;
+    for thing in &stuff {
+        commands.entity(thing).despawn();
+    }
+}
+
+/// Press ESCAPE while playing to go back — to the title
+/// screen, or to the editor if we were playtesting.
+fn back_to_menu(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    the_editor: Res<editor::Editor>,
+    mut next_screen: ResMut<NextState<Screen>>,
+) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        if the_editor.playtesting {
+            next_screen.set(Screen::Editor);
+        } else {
+            next_screen.set(Screen::Title);
+        }
+    }
+}
+
 // ======================================================
 //  SWITCH LEVEL — sweep away the old level and build
-//  the new one from its list in levels.rs!
+//  the new one from the level book!
 // ======================================================
 
 fn switch_level(
@@ -413,6 +731,7 @@ fn switch_level(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut game: ResMut<Game>,
+    book: Res<LevelBook>,
     old_stuff: Query<Entity, With<LevelStuff>>,
 ) {
     // ".take()" grabs the switch order and empties it,
@@ -427,140 +746,19 @@ fn switch_level(
         commands.entity(old_thing).despawn();
     }
 
-    // Colors and shapes for the level pieces:
-    let orange = materials.add(Color::srgb(1.0, 0.5, 0.1));
-    let purple = materials.add(Color::srgb(0.6, 0.2, 0.9));
-    let blue = materials.add(Color::srgb(0.2, 0.5, 1.0));
+    // Build every piece from the level book's list.
+    for (piece, start_z) in book.get(new_level).pieces.clone() {
+        spawn_piece(&mut commands, &mut meshes, &mut materials, piece, start_z);
+    }
+
     let red = materials.add(Color::srgb(0.9, 0.1, 0.1));
     let gold = materials.add(Color::srgb(1.0, 0.85, 0.2));
     let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
-    let spike_shape = meshes.add(Cone::new(0.6, 1.4));
-    let cube_shape = meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE));
-
-    // Ask the level book for this level's list of pieces.
-    for (piece, start_z) in levels::level_pieces(new_level) {
-        match piece {
-            // Orange spike sitting on the ground. JUMP!
-            Piece::Spike => {
-                commands.spawn((
-                    LevelStuff,
-                    Scrolls,
-                    Deadly,
-                    Mesh3d(spike_shape.clone()),
-                    MeshMaterial3d(orange.clone()),
-                    Transform::from_xyz(0.0, 0.7, start_z),
-                ));
-            }
-            // Purple platform cube. Land on TOP — not the side!
-            Piece::Cube => {
-                commands.spawn((
-                    LevelStuff,
-                    Scrolls,
-                    Platform { top: CUBE_SIZE },
-                    Mesh3d(cube_shape.clone()),
-                    MeshMaterial3d(purple.clone()),
-                    // The cube's middle is at half its height.
-                    Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
-                ));
-            }
-            // A DOUBLE-TALL cube! Too high to reach from the
-            // ground — climb up using a normal cube first,
-            // like stairs!
-            Piece::TallCube => {
-                commands.spawn((
-                    LevelStuff,
-                    Scrolls,
-                    Platform {
-                        top: CUBE_SIZE * 2.0,
-                    },
-                    Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 2.0, CUBE_SIZE))),
-                    MeshMaterial3d(purple.clone()),
-                    Transform::from_xyz(0.0, CUBE_SIZE, start_z),
-                ));
-            }
-            // A TRIPLE-TALL cube! Only reachable from a
-            // tall cube. Up here you can see everything!
-            Piece::TripleCube => {
-                commands.spawn((
-                    LevelStuff,
-                    Scrolls,
-                    Platform {
-                        top: CUBE_SIZE * 3.0,
-                    },
-                    Mesh3d(meshes.add(Cuboid::new(CUBE_SIZE, CUBE_SIZE * 3.0, CUBE_SIZE))),
-                    MeshMaterial3d(purple.clone()),
-                    Transform::from_xyz(0.0, CUBE_SIZE * 1.5, start_z),
-                ));
-            }
-            // A cube wearing a spike hat. Do NOT land on this one!
-            Piece::CubeWithSpike => {
-                commands.spawn((
-                    LevelStuff,
-                    Scrolls,
-                    Platform { top: CUBE_SIZE },
-                    Mesh3d(cube_shape.clone()),
-                    MeshMaterial3d(purple.clone()),
-                    Transform::from_xyz(0.0, CUBE_SIZE / 2.0, start_z),
-                ));
-                commands.spawn((
-                    LevelStuff,
-                    Scrolls,
-                    Deadly,
-                    Mesh3d(spike_shape.clone()),
-                    MeshMaterial3d(orange.clone()),
-                    // The spike sits on top: cube height + half the spike.
-                    Transform::from_xyz(0.0, CUBE_SIZE + 0.7, start_z),
-                ));
-            }
-            // Blue upside-down spike FLOATING IN THE AIR.
-            // DON'T jump — run under it!
-            Piece::SkySpike => {
-                commands.spawn((
-                    LevelStuff,
-                    Scrolls,
-                    Deadly,
-                    Mesh3d(spike_shape.clone()),
-                    MeshMaterial3d(blue.clone()),
-                    // rotate_x by PI (half a full turn) flips
-                    // the cone upside down!
-                    Transform::from_xyz(0.0, 2.2, start_z)
-                        .with_rotation(Quat::from_rotation_x(std::f32::consts::PI)),
-                ));
-            }
-            // The RED BAD GUY! A ball that does little hops.
-            Piece::BadGuy => {
-                commands
-                    .spawn((
-                        LevelStuff,
-                        Scrolls,
-                        Deadly,
-                        Bouncing,
-                        Mesh3d(meshes.add(Sphere::new(0.55))),
-                        MeshMaterial3d(red.clone()),
-                        Transform::from_xyz(0.0, 0.55, start_z),
-                        Visibility::default(),
-                    ))
-                    .with_children(|bad_guy| {
-                        bad_guy.spawn((
-                            Mesh3d(meshes.add(Sphere::new(0.12))),
-                            MeshMaterial3d(white.clone()),
-                            Transform::from_xyz(-0.2, 0.2, 0.45),
-                        ));
-                        bad_guy.spawn((
-                            Mesh3d(meshes.add(Sphere::new(0.12))),
-                            MeshMaterial3d(white.clone()),
-                            Transform::from_xyz(0.2, 0.2, 0.45),
-                        ));
-                    });
-            }
-        }
-    }
 
     if new_level == levels::FIRST_BOSS {
         // ---------- THE BIG RED BOSS! ----------
         // A GIANT angry ball floats ahead and throws
-        // bouncing balls at you. He does not scroll —
-        // he just hangs there, being enormous and rude.
+        // bouncing balls at you.
         commands
             .spawn((
                 LevelStuff,
@@ -596,84 +794,22 @@ fn switch_level(
             });
     } else if new_level == levels::FINAL_BOSS {
         // ---------- THE CURSED THORN! ----------
-        // The FINAL boss: a spooky rose growing out of a
-        // flower pot. It slides side to side and shoots
-        // THORNS at you. Dodge them all to win the game!
-        let brown = materials.add(Color::srgb(0.5, 0.3, 0.15));
-        let stem_green = materials.add(Color::srgb(0.2, 0.55, 0.2));
-        let rose_pink = materials.add(Color::srgb(1.0, 0.2, 0.5));
-        let thorn_gray = materials.add(Color::srgb(0.45, 0.45, 0.4));
-
-        commands
-            .spawn((
-                LevelStuff,
-                Boss {
-                    kind: BossKind::CursedThorn,
-                    hearts: BOSS_HEARTS,
-                    throw_timer: 0.0,
-                    shots_dodged: 0,
-                },
-                Transform::from_xyz(0.0, 0.0, -16.0),
-                Visibility::default(),
-            ))
-            .with_children(|plant| {
-                // The flower pot.
-                plant.spawn((
-                    Mesh3d(meshes.add(Cuboid::new(1.6, 1.1, 1.6))),
-                    MeshMaterial3d(brown.clone()),
-                    Transform::from_xyz(0.0, 0.55, 0.0),
-                ));
-                // The tall green stem growing out of it.
-                plant.spawn((
-                    Mesh3d(meshes.add(Capsule3d::new(0.16, 2.4))),
-                    MeshMaterial3d(stem_green.clone()),
-                    Transform::from_xyz(0.0, 2.3, 0.0),
-                ));
-                // Sharp thorns sticking out of the stem,
-                // pointing left and right, one per height.
-                for i in 0..4 {
-                    // Thorn 0 points left, 1 right, 2 left...
-                    // (i % 2 tells us: even or odd?)
-                    let side = if i % 2 == 0 { -1.0 } else { 1.0 };
-                    let height = 1.4 + i as f32 * 0.55;
-                    plant.spawn((
-                        Mesh3d(meshes.add(Cone::new(0.14, 0.5))),
-                        MeshMaterial3d(thorn_gray.clone()),
-                        Transform::from_xyz(side * 0.35, height, 0.0)
-                            // Tip the thorn sideways (a quarter
-                            // turn is about 1.57 radians).
-                            .with_rotation(Quat::from_rotation_z(side * -1.57)),
-                    ));
-                }
-                // The evil rose on top: a yellow middle...
-                plant.spawn((
-                    Mesh3d(meshes.add(Sphere::new(0.3))),
-                    MeshMaterial3d(materials.add(Color::srgb(1.0, 0.85, 0.2))),
-                    Transform::from_xyz(0.0, 3.7, 0.3),
-                ));
-                // ...with 6 pink petals in a circle around it.
-                // cos & sin place them around the circle,
-                // just like the fireworks!
-                for i in 0..6 {
-                    let angle = i as f32 * 6.28 / 6.0;
-                    plant.spawn((
-                        Mesh3d(meshes.add(Sphere::new(0.28))),
-                        MeshMaterial3d(rose_pink.clone()),
-                        Transform::from_xyz(angle.cos() * 0.5, 3.7 + angle.sin() * 0.5, 0.15),
-                    ));
-                }
-                // Two angry eyes on the flower, of course.
-                plant.spawn((
-                    Mesh3d(meshes.add(Sphere::new(0.09))),
-                    MeshMaterial3d(white.clone()),
-                    Transform::from_xyz(-0.12, 3.75, 0.56),
-                ));
-                plant.spawn((
-                    Mesh3d(meshes.add(Sphere::new(0.09))),
-                    MeshMaterial3d(white.clone()),
-                    Transform::from_xyz(0.12, 3.75, 0.56),
-                ));
-            });
+        // The FINAL boss: the spooky rose in a flower pot.
+        let plant = spawn_thorn_plant(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            Transform::from_xyz(0.0, 0.0, -16.0),
+        );
+        commands.entity(plant).insert((
+            LevelStuff,
+            Boss {
+                kind: BossKind::CursedThorn,
+                hearts: BOSS_HEARTS,
+                throw_timer: 0.0,
+                shots_dodged: 0,
+            },
+        ));
     } else {
         // ---------- THE GOLDEN FINISH LINE ----------
         // Normal levels end at a golden gate. Reach it to win!
@@ -682,7 +818,7 @@ fn switch_level(
                 LevelStuff,
                 Scrolls,
                 FinishLine,
-                Transform::from_xyz(0.0, 0.0, levels::finish_line(new_level)),
+                Transform::from_xyz(0.0, 0.0, book.get(new_level).finish),
                 Visibility::default(),
             ))
             .with_children(|gate| {
@@ -753,7 +889,7 @@ fn bunny_jump(
 
     for (mut position, mut bunny) in &mut bunnies {
         // Where is the floor right now? The ground (0), or
-        // the top of a platform cube (1.2)?
+        // the top of a platform cube?
         let floor = floor_height_under_bunny(&platforms);
 
         // The bunny's middle sits half a bunny above the floor.
@@ -812,13 +948,14 @@ fn flop_ears(bunnies: Query<&Bunny>, mut ears: Query<&mut Transform, With<Ear>>)
 
 // ======================================================
 //  MOVING THE LEVEL — every piece slides toward the
-//  bunny. Each level is a little faster!
+//  bunny, at the speed written in the level book.
 // ======================================================
 
 fn move_level(
     time: Res<Time>,
     party: Res<Party>,
     game: Res<Game>,
+    book: Res<LevelBook>,
     mut pieces: Query<&mut Transform, With<Scrolls>>,
 ) {
     // The level stops moving during the party!
@@ -826,8 +963,7 @@ fn move_level(
         return;
     }
 
-    // Ask the level book how fast this level goes.
-    let speed = levels::level_speed(game.level);
+    let speed = book.get(game.level).speed;
 
     for mut position in &mut pieces {
         // MOVING MATH again: new spot = old spot + speed × time.
@@ -866,7 +1002,7 @@ fn bounce_bad_guys(time: Res<Time>, mut bad_guys: Query<&mut Transform, With<Bou
 }
 
 // ======================================================
-//  THE BOSS FIGHT! He floats, he glares, he THROWS.
+//  THE BOSS FIGHTS! They float, they glare, they THROW.
 // ======================================================
 
 fn boss_fight(
@@ -938,8 +1074,6 @@ fn boss_fight(
                         MeshMaterial3d(materials.add(Color::srgb(0.35, 0.4, 0.25))),
                         Transform::from_translation(flower)
                             // Point the thorn the way it flies!
-                            // (Cones point UP, so we rotate UP
-                            // to match the flight direction.)
                             .with_rotation(Quat::from_rotation_arc(
                                 Vec3::Y,
                                 velocity.normalize(),
@@ -1032,7 +1166,7 @@ fn check_for_crash(
     for (mut bunny_position, mut bunny) in &mut bunnies {
         let mut crashed = false;
 
-        // Spikes, bad guys, boss balls: DISTANCE MATH!
+        // Spikes, bad guys, boss shots: DISTANCE MATH!
         // How far apart are we? Bevy measures it for us
         // (using the Pythagorean theorem — a² + b² = c²!)
         for danger in &deadly_things {
@@ -1242,13 +1376,14 @@ fn end_the_party(
 }
 
 // ======================================================
-//  THE CORNER WORDS — score, level number, boss hearts.
+//  THE CORNER WORDS — score, level name, boss hearts.
 // ======================================================
 
 fn update_words(
     time: Res<Time>,
     party: Res<Party>,
     game: Res<Game>,
+    book: Res<LevelBook>,
     mut score: ResMut<Score>,
     bosses: Query<&Boss>,
     mut score_text: Query<&mut Text, (With<ScoreText>, Without<LevelText>)>,
@@ -1266,13 +1401,17 @@ fn update_words(
     }
 
     for mut t in &mut level_text {
-        // Is there a boss? Show his hearts too!
+        // Is there a boss? Show its hearts too!
         if let Some(boss) = bosses.iter().next() {
             // "repeat" copies the heart once per health point.
             let hearts = "<3 ".repeat(boss.hearts.max(0) as usize);
             *t = Text::new(format!("BOSS  {hearts}"));
         } else {
-            *t = Text::new(format!("Level {}", game.level));
+            *t = Text::new(format!(
+                "Level {}: {}",
+                game.level,
+                book.get(game.level).name
+            ));
         }
     }
 }

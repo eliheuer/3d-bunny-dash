@@ -1,0 +1,163 @@
+# ======================================================
+#  THE LEVEL BOOK for 3D Bunny Geometry Dash!
+# ======================================================
+# This file IS the levels. The game reads it when it
+# starts, and the level editor saves back into it!
+#
+# How to write a level:
+#   level <number> <name>   starts a new level
+#   speed <number>          how fast it slides at you
+#   finish <distance>       where the golden gate waits
+#   <piece> <distance>      one piece on the road
+#
+# The pieces:
+#   spike      orange spike — jump it!
+#   cube       purple platform cube
+#   tall       two-cubes-tall platform
+#   triple     three-cubes-tall platform
+#   cubespike  cube with a spike hat
+#   skyspike   floating spike — DON'T jump!
+#   badguy     red bouncing ball
+#
+# Distances are how far down the road (bigger = farther).
+# Pieces 1.2 apart make a longer platform!
+
+level 1 Bunny Meadow
+speed 8
+finish 106
+spike 18
+cube 27
+spike 36
+cube 45
+cube 46.2
+cube 47.4
+skyspike 56
+badguy 65
+cube 74
+cube 75.2
+cubespike 76.4
+spike 85
+skyspike 91
+spike 97
+
+level 2 Cube Mountain
+speed 8
+finish 110
+cube 18
+spike 26
+cube 33
+cube 34.2
+skyspike 43
+cube 50
+cube 51.2
+cube 52.4
+tall 53.6
+tall 54.8
+cube 56
+cube 57.2
+spike 65
+cube 72
+cube 73.2
+cubespike 74.4
+skyspike 83
+spike 90
+cube 97
+cube 98.2
+
+level 3 The Gauntlet
+speed 10
+finish 122
+badguy 18
+spike 27
+spike 28.2
+skyspike 37
+cube 45
+cube 46.2
+cubespike 47.4
+spike 58
+skyspike 65
+badguy 72
+cube 80
+cube 81.2
+cube 82.4
+spike 92
+spike 93.2
+skyspike 101
+spike 108
+
+level 4 The Big Red Boss
+speed 8
+finish 0
+
+level 5 Sky Stairs
+speed 8
+finish 112
+cube 18
+cube 19.2
+cube 20.4
+cube 21.6
+cube 22.8
+cube 28
+cube 29.2
+cube 30.4
+cube 31.6
+tall 32.8
+tall 34
+tall 35.2
+spike 44
+cube 51
+cube 52.2
+cube 53.4
+cube 54.6
+tall 55.8
+tall 57
+tall 58.2
+triple 59.4
+triple 60.6
+triple 61.8
+triple 63
+spike 72
+spike 73.2
+cube 80
+cube 81.2
+cube 82.4
+cube 83.6
+skyspike 91
+spike 98
+
+level 6 The Tricky Tower
+speed 9
+finish 118
+spike 18
+cube 25
+cube 26.2
+cube 27.4
+cube 28.6
+cube 29.8
+tall 35
+tall 36.2
+tall 37.4
+tall 38.6
+tall 39.8
+triple 45
+triple 46.2
+triple 47.4
+triple 48.6
+triple 49.8
+spike 59
+spike 60.2
+cube 68
+cube 69.2
+cube 70.4
+cubespike 71.6
+skyspike 80
+badguy 87
+cube 94
+cube 95.2
+cube 96.4
+cube 97.6
+spike 105
+
+level 7 The Cursed Thorn
+speed 8
+finish 0

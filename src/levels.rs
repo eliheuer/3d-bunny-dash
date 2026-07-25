@@ -1,25 +1,14 @@
 //! ======================================================
-//!  THE LEVEL BOOK — every level lives here!
+//!  THE LEVEL BOOK — reading and writing levels.txt!
 //! ======================================================
-//! Each level is just a LIST of (what piece, how far away).
-//! That's all a level is: a list! One day, a LEVEL EDITOR
-//! could write these lists for us by clicking — for now,
-//! we write them by hand. Design your own!
-//!
-//! THE WHOLE ADVENTURE:
-//!   1. Bunny Meadow      — a friendly start
-//!   2. Cube Mountain     — platform hopping
-//!   3. The Gauntlet      — fast and furious!
-//!   4. THE BIG RED BOSS  — the first boss...
-//!   5. Sky Stairs        — climb high above the ground!
-//!   6. The Tricky Tower  — gap jumps at great heights!
-//!   7. THE CURSED THORN  — the FINAL boss of the game!
-//!
-//! Bigger minus numbers = farther down the road.
-//! Cubes 1.2 apart sit right next to each other and
-//! make a longer platform you can run across!
+//! The levels themselves live in assets/levels.txt now —
+//! open it up, it's easy to read! This file is the
+//! LIBRARIAN: it reads that file into the game when we
+//! start, and writes it back when the LEVEL EDITOR saves.
 
 use crate::Piece;
+use bevy::prelude::Resource;
+use std::fs;
 
 /// Level 4 is the first boss...
 pub const FIRST_BOSS: usize = 4;
@@ -27,198 +16,152 @@ pub const FIRST_BOSS: usize = 4;
 /// ...and level 7 is the FINAL boss: the Cursed Thorn!
 pub const FINAL_BOSS: usize = 7;
 
-/// How fast each level slides at you.
-/// Levels 3 and 6 are the speedy ones!
-pub fn level_speed(level: usize) -> f32 {
-    match level {
-        3 => 10.0,
-        6 => 9.0,
-        _ => 8.0,
+/// Where the level book lives on disk.
+pub const LEVELS_FILE: &str = "assets/levels.txt";
+
+/// Everything we know about ONE level.
+pub struct LevelData {
+    pub name: String,
+    pub speed: f32,
+    /// Where the golden gate is (a minus number, like pieces).
+    pub finish: f32,
+    /// The list of pieces, just like always!
+    pub pieces: Vec<(Piece, f32)>,
+}
+
+/// The whole book of levels, shared with the whole game.
+#[derive(Resource)]
+pub struct LevelBook {
+    pub levels: Vec<LevelData>,
+}
+
+impl LevelBook {
+    /// Look up one level. Level 1 is the first page.
+    /// (".min" keeps us from reading past the last page!)
+    pub fn get(&self, level: usize) -> &LevelData {
+        let page = (level - 1).min(self.levels.len() - 1);
+        &self.levels[page]
+    }
+
+    /// Look up one level when we want to CHANGE it.
+    pub fn get_mut(&mut self, level: usize) -> &mut LevelData {
+        let page = (level - 1).min(self.levels.len() - 1);
+        &mut self.levels[page]
     }
 }
 
-/// Where the golden finish gate waits in each level.
-pub fn finish_line(level: usize) -> f32 {
-    match level {
-        1 => -106.0,
-        2 => -110.0,
-        3 => -122.0,
-        5 => -112.0,
-        _ => -118.0,
+/// Turn a piece into the word we write in the file.
+pub fn piece_to_word(piece: Piece) -> &'static str {
+    match piece {
+        Piece::Spike => "spike",
+        Piece::Cube => "cube",
+        Piece::TallCube => "tall",
+        Piece::TripleCube => "triple",
+        Piece::CubeWithSpike => "cubespike",
+        Piece::SkySpike => "skyspike",
+        Piece::BadGuy => "badguy",
     }
 }
 
-/// The list of pieces for each level!
-pub fn level_pieces(level: usize) -> Vec<(Piece, f32)> {
-    match level {
-        // ---------- LEVEL 1: Bunny Meadow ----------
-        // A friendly start. One of everything!
-        1 => vec![
-            (Piece::Spike, -18.0),
-            (Piece::Cube, -27.0),
-            (Piece::Spike, -36.0),
-            // Three cubes in a row make a bridge!
-            (Piece::Cube, -45.0),
-            (Piece::Cube, -46.2),
-            (Piece::Cube, -47.4),
-            (Piece::SkySpike, -56.0),
-            (Piece::BadGuy, -65.0),
-            // Land on the bridge, ride two cubes, then
-            // jump the spiky third one!
-            (Piece::Cube, -74.0),
-            (Piece::Cube, -75.2),
-            (Piece::CubeWithSpike, -76.4),
-            (Piece::Spike, -85.0),
-            (Piece::SkySpike, -91.0),
-            (Piece::Spike, -97.0),
-        ],
+/// Turn a word from the file back into a piece.
+/// "None" means "that's not a piece word I know!"
+pub fn word_to_piece(word: &str) -> Option<Piece> {
+    match word {
+        "spike" => Some(Piece::Spike),
+        "cube" => Some(Piece::Cube),
+        "tall" => Some(Piece::TallCube),
+        "triple" => Some(Piece::TripleCube),
+        "cubespike" => Some(Piece::CubeWithSpike),
+        "skyspike" => Some(Piece::SkySpike),
+        "badguy" => Some(Piece::BadGuy),
+        _ => None,
+    }
+}
 
-        // ---------- LEVEL 2: Cube Mountain ----------
-        // A platform level! Hop from cube to cube, and
-        // climb the big cube mountain in the middle.
-        2 => vec![
-            (Piece::Cube, -18.0),
-            (Piece::Spike, -26.0),
-            // A little bridge to warm up.
-            (Piece::Cube, -33.0),
-            (Piece::Cube, -34.2),
-            (Piece::SkySpike, -43.0),
-            // THE CUBE MOUNTAIN! Three stairs up...
-            (Piece::Cube, -50.0),
-            (Piece::Cube, -51.2),
-            (Piece::Cube, -52.4),
-            // ...the tall peak (jump up from the stairs!)...
-            (Piece::TallCube, -53.6),
-            (Piece::TallCube, -54.8),
-            // ...and back down the other side.
-            (Piece::Cube, -56.0),
-            (Piece::Cube, -57.2),
-            (Piece::Spike, -65.0),
-            // Ride two cubes, jump the spiky third!
-            (Piece::Cube, -72.0),
-            (Piece::Cube, -73.2),
-            (Piece::CubeWithSpike, -74.4),
-            (Piece::SkySpike, -83.0),
-            (Piece::Spike, -90.0),
-            // One last little bridge before the gate.
-            (Piece::Cube, -97.0),
-            (Piece::Cube, -98.2),
-        ],
+/// Read levels.txt and build the level book, one line
+/// at a time. This is called PARSING — turning words
+/// in a file into things the computer understands!
+pub fn load_level_book() -> LevelBook {
+    let text = fs::read_to_string(LEVELS_FILE)
+        .expect("Oh no — I couldn't find assets/levels.txt!");
 
-        // ---------- LEVEL 3: The Gauntlet ----------
-        // The fastest level! Everything you've learned!
-        3 => vec![
-            (Piece::BadGuy, -18.0),
-            (Piece::Spike, -27.0),
-            (Piece::Spike, -28.2),
-            (Piece::SkySpike, -37.0),
-            // Ride two cubes, jump the spiky third!
-            (Piece::Cube, -45.0),
-            (Piece::Cube, -46.2),
-            (Piece::CubeWithSpike, -47.4),
-            (Piece::Spike, -58.0),
-            (Piece::SkySpike, -65.0),
-            (Piece::BadGuy, -72.0),
-            // A long bridge...
-            (Piece::Cube, -80.0),
-            (Piece::Cube, -81.2),
-            (Piece::Cube, -82.4),
-            // ...then double spikes after you land!
-            (Piece::Spike, -92.0),
-            (Piece::Spike, -93.2),
-            (Piece::SkySpike, -101.0),
-            (Piece::Spike, -108.0),
-        ],
+    let mut levels: Vec<LevelData> = Vec::new();
 
-        // ---------- LEVEL 5: Sky Stairs ----------
-        // After the first boss! All about climbing.
-        // Bridges with GAPS — hop from one to the next,
-        // then climb a giant staircase into the sky!
-        5 => vec![
-            // A nice LONG low bridge — plenty of room to land!
-            (Piece::Cube, -18.0),
-            (Piece::Cube, -19.2),
-            (Piece::Cube, -20.4),
-            (Piece::Cube, -21.6),
-            (Piece::Cube, -22.8),
-            // A gap... then another long bridge...
-            (Piece::Cube, -28.0),
-            (Piece::Cube, -29.2),
-            (Piece::Cube, -30.4),
-            (Piece::Cube, -31.6),
-            // ...climbing to a long tall ridge at the end!
-            (Piece::TallCube, -32.8),
-            (Piece::TallCube, -34.0),
-            (Piece::TallCube, -35.2),
-            (Piece::Spike, -44.0),
-            // THE GIANT STAIRCASE: low, tall, TRIPLE!
-            // Every step is long, so take your time.
-            // Up here the bunny is really, really high!
-            (Piece::Cube, -51.0),
-            (Piece::Cube, -52.2),
-            (Piece::Cube, -53.4),
-            (Piece::Cube, -54.6),
-            (Piece::TallCube, -55.8),
-            (Piece::TallCube, -57.0),
-            (Piece::TallCube, -58.2),
-            (Piece::TripleCube, -59.4),
-            (Piece::TripleCube, -60.6),
-            (Piece::TripleCube, -61.8),
-            (Piece::TripleCube, -63.0),
-            // The big drop! Then double spikes.
-            (Piece::Spike, -72.0),
-            (Piece::Spike, -73.2),
-            (Piece::Cube, -80.0),
-            (Piece::Cube, -81.2),
-            (Piece::Cube, -82.4),
-            (Piece::Cube, -83.6),
-            (Piece::SkySpike, -91.0),
-            (Piece::Spike, -98.0),
-        ],
+    for line in text.lines() {
+        let line = line.trim();
 
-        // ---------- LEVEL 6: The Tricky Tower ----------
-        // The hardest level! Gap jumps at every height:
-        // bridge → tall bridge → TRIPLE bridge, each with
-        // a gap. Miss a jump and you hit the SIDE. Careful!
-        6 => vec![
-            (Piece::Spike, -18.0),
-            // A long low bridge — land, relax, get ready...
-            (Piece::Cube, -25.0),
-            (Piece::Cube, -26.2),
-            (Piece::Cube, -27.4),
-            (Piece::Cube, -28.6),
-            (Piece::Cube, -29.8),
-            // ...gap, then jump UP onto a long tall bridge...
-            (Piece::TallCube, -35.0),
-            (Piece::TallCube, -36.2),
-            (Piece::TallCube, -37.4),
-            (Piece::TallCube, -38.6),
-            (Piece::TallCube, -39.8),
-            // ...gap, then UP again onto the TRIPLE bridge!
-            (Piece::TripleCube, -45.0),
-            (Piece::TripleCube, -46.2),
-            (Piece::TripleCube, -47.4),
-            (Piece::TripleCube, -48.6),
-            (Piece::TripleCube, -49.8),
-            // The huge drop, then double spikes!
-            (Piece::Spike, -59.0),
-            (Piece::Spike, -60.2),
-            // Ride three cubes, jump the spiky fourth.
-            (Piece::Cube, -68.0),
-            (Piece::Cube, -69.2),
-            (Piece::Cube, -70.4),
-            (Piece::CubeWithSpike, -71.6),
-            (Piece::SkySpike, -80.0),
-            (Piece::BadGuy, -87.0),
-            (Piece::Cube, -94.0),
-            (Piece::Cube, -95.2),
-            (Piece::Cube, -96.4),
-            (Piece::Cube, -97.6),
-            (Piece::Spike, -105.0),
-        ],
+        // Skip empty lines and "#" comment lines.
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
 
-        // ---------- BOSS LEVELS (4 and 7) ----------
-        // No pieces! The bosses bring their own trouble...
-        _ => vec![],
+        // Chop the line into words: "spike 18" → ["spike", "18"]
+        let words: Vec<&str> = line.split_whitespace().collect();
+
+        match words[0] {
+            // "level 5 Sky Stairs" → start a fresh level.
+            // Its name is all the words after the number.
+            "level" => levels.push(LevelData {
+                name: words[2..].join(" "),
+                speed: 8.0,
+                finish: 0.0,
+                pieces: Vec::new(),
+            }),
+            // "speed 9" → how fast this level goes.
+            "speed" => {
+                if let Some(level) = levels.last_mut() {
+                    level.speed = words[1].parse().unwrap_or(8.0);
+                }
+            }
+            // "finish 106" → the gate is 106 down the road.
+            // We flip it to -106 because "down the road"
+            // is the minus-z direction in our world.
+            "finish" => {
+                if let Some(level) = levels.last_mut() {
+                    let distance: f32 = words[1].parse().unwrap_or(0.0);
+                    level.finish = -distance;
+                }
+            }
+            // Any other word should be a piece, like "cube 27".
+            word => {
+                if let (Some(piece), Some(level)) = (word_to_piece(word), levels.last_mut()) {
+                    let distance: f32 = words[1].parse().unwrap_or(0.0);
+                    level.pieces.push((piece, -distance));
+                }
+            }
+        }
+    }
+
+    LevelBook { levels }
+}
+
+/// Write the whole level book back into levels.txt.
+/// This is what the level editor's SAVE button does!
+pub fn save_level_book(book: &LevelBook) {
+    let mut out = String::from(
+        "# ======================================================\n\
+         #  THE LEVEL BOOK for 3D Bunny Geometry Dash!\n\
+         # ======================================================\n\
+         # Pieces: spike cube tall triple cubespike skyspike badguy\n\
+         # Distances are how far down the road. Edit me by hand,\n\
+         # or use the LEVEL EDITOR in the game!\n",
+    );
+
+    for (i, level) in book.levels.iter().enumerate() {
+        out += &format!(
+            "\nlevel {} {}\nspeed {}\nfinish {}\n",
+            i + 1,
+            level.name,
+            level.speed,
+            -level.finish,
+        );
+        for (piece, z) in &level.pieces {
+            // Flip the minus numbers back to plus for the file.
+            out += &format!("{} {}\n", piece_to_word(*piece), -z);
+        }
+    }
+
+    if fs::write(LEVELS_FILE, out).is_err() {
+        println!("Oh no — I couldn't save the level book!");
     }
 }
