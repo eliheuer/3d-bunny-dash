@@ -156,7 +156,7 @@ fn open_editor(
         Text::new(""),
         TextFont {
             font: font.0.clone(),
-            font_size: 28.0,
+            font_size: 34.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -169,27 +169,67 @@ fn open_editor(
         },
     ));
 
-    // The help words along the bottom.
-    commands.spawn((
-        EditorStuff,
-        Text::new(
-            "1 spike   2 cube   3 tall   4 triple   5 cube+spike   6 sky spike   7 bad guy\n\
-             arrows: move      L: change level      X delete      P playtest      S save      Esc menu",
-        ),
-        TextFont {
-            font: font.0.clone(),
-            font_size: 20.0,
-            ..default()
-        },
-        TextColor(Color::srgb(1.0, 0.9, 0.2)),
-        TextLayout::new_with_justify(Justify::Center),
-        Node {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(16.0),
-            width: Val::Percent(100.0),
-            ..default()
-        },
-    ));
+    // The help words along the bottom. Each command is a
+    // pair: the KEY in yellow, then what it does in white,
+    // so your eye can find the buttons fast! (A text can
+    // hold many differently-colored pieces — each piece
+    // is called a "span".)
+    let commands_list = [
+        ("1", " spike    "),
+        ("2", " cube    "),
+        ("3", " tall    "),
+        ("4", " triple    "),
+        ("5", " cube+spike    "),
+        ("6", " sky spike    "),
+        ("7", " bad guy\n"),
+        ("arrows", " move      "),
+        ("L", " change level      "),
+        ("X", " delete      "),
+        ("P", " playtest      "),
+        ("S", " save      "),
+        ("Esc", " menu"),
+    ];
+    commands
+        .spawn((
+            EditorStuff,
+            Text::new(""),
+            TextFont {
+                font: font.0.clone(),
+                font_size: 26.0,
+                ..default()
+            },
+            TextLayout::new_with_justify(Justify::Center),
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(16.0),
+                width: Val::Percent(100.0),
+                ..default()
+            },
+        ))
+        .with_children(|line| {
+            for (key, what_it_does) in commands_list {
+                // The key, in bright yellow...
+                line.spawn((
+                    TextSpan::new(key),
+                    TextColor(crate::YELLOW),
+                    TextFont {
+                        font: font.0.clone(),
+                        font_size: 26.0,
+                        ..default()
+                    },
+                ));
+                // ...then what it does, in white.
+                line.spawn((
+                    TextSpan::new(what_it_does),
+                    TextColor(Color::WHITE),
+                    TextFont {
+                        font: font.0.clone(),
+                        font_size: 26.0,
+                        ..default()
+                    },
+                ));
+            }
+        });
 }
 
 fn close_editor(

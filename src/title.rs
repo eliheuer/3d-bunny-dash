@@ -109,10 +109,11 @@ fn open_title(
     ));
 
     // ----- Shapes decorating the bottom of the stage -----
-    let orange = materials.add(Color::srgb(1.0, 0.5, 0.1));
-    let purple = materials.add(Color::srgb(0.6, 0.2, 0.9));
-    let blue = materials.add(Color::srgb(0.2, 0.5, 1.0));
-    let red = materials.add(Color::srgb(0.9, 0.1, 0.1));
+    // Straight out of the paintbox, same as in the game.
+    let orange = materials.add(crate::ORANGE);
+    let purple = materials.add(crate::PURPLE);
+    let blue = materials.add(crate::BLUE);
+    let red = materials.add(crate::RED);
 
     commands.spawn((
         TitleStuff,
@@ -151,10 +152,10 @@ fn open_title(
     // ----- The title words! -----
     commands.spawn((
         TitleStuff,
-        Text::new("3D BUNNY GEOMETRY DASH"),
+        Text::new("3D BUNNY"),
         TextFont {
             font: font.0.clone(),
-            font_size: 64.0,
+            font_size: 120.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -171,10 +172,10 @@ fn open_title(
         Text::new("HOP! JUMP! DASH!"),
         TextFont {
             font: font.0.clone(),
-            font_size: 40.0,
+            font_size: 48.0,
             ..default()
         },
-        TextColor(Color::srgb(1.0, 0.4, 0.7)),
+        TextColor(crate::PINK),
         TextLayout::new_with_justify(Justify::Center),
         Node {
             position_type: PositionType::Absolute,
@@ -188,10 +189,10 @@ fn open_title(
         Text::new("[1] PLAY        [2] SETTINGS        [3] LEVEL EDITOR"),
         TextFont {
             font: font.0.clone(),
-            font_size: 30.0,
+            font_size: 38.0,
             ..default()
         },
-        TextColor(Color::srgb(1.0, 0.9, 0.2)),
+        TextColor(crate::YELLOW),
         TextLayout::new_with_justify(Justify::Center),
         Node {
             position_type: PositionType::Absolute,
@@ -243,7 +244,7 @@ fn open_settings(mut commands: Commands, font: Res<GameFont>, reading: Res<Readi
         Text::new("SETTINGS"),
         TextFont {
             font: font.0.clone(),
-            font_size: 72.0,
+            font_size: 84.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -262,10 +263,10 @@ fn open_settings(mut commands: Commands, font: Res<GameFont>, reading: Res<Readi
         TextFont {
             // The easy-reading font for the smaller words.
             font: reading.0.clone(),
-            font_size: 32.0,
+            font_size: 40.0,
             ..default()
         },
-        TextColor(Color::srgb(1.0, 0.9, 0.2)),
+        TextColor(crate::YELLOW),
         TextLayout::new_with_justify(Justify::Center),
         Node {
             position_type: PositionType::Absolute,

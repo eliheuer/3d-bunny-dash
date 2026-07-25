@@ -1,5 +1,5 @@
 //! ======================================================
-//!   3-D BUNNY GEOMETRY DASH vs. THE CURSED THORN
+//!                    3 D   B U N N Y
 //! ======================================================
 //! A game about a pink bunny who runs forever and
 //! jumps over obstacles. Press ANY key (or SPACE) to jump!
@@ -69,6 +69,25 @@ const BOSS_HEARTS: i32 = 3;
 
 /// Dodge this many boss shots to knock off one heart.
 const DODGES_PER_HEART: i32 = 3;
+
+// ======================================================
+//  THE PAINTBOX — every color in the game comes from
+//  this one little set, so everything matches! Like a
+//  box of preschool paints: bright, friendly, and
+//  softened just a touch so they look good together.
+// ======================================================
+
+pub const RED: Color = Color::srgb(0.90, 0.24, 0.21);
+pub const ORANGE: Color = Color::srgb(0.96, 0.58, 0.12);
+pub const YELLOW: Color = Color::srgb(1.0, 0.80, 0.20);
+pub const GREEN: Color = Color::srgb(0.35, 0.72, 0.35);
+pub const BLUE: Color = Color::srgb(0.25, 0.55, 0.95);
+pub const PURPLE: Color = Color::srgb(0.58, 0.40, 0.85);
+pub const PINK: Color = Color::srgb(0.97, 0.51, 0.71);
+pub const LIGHT_PINK: Color = Color::srgb(1.0, 0.76, 0.86);
+pub const BROWN: Color = Color::srgb(0.55, 0.36, 0.20);
+pub const INK: Color = Color::srgb(0.16, 0.13, 0.17);
+pub const WHITE: Color = Color::srgb(1.0, 1.0, 1.0);
 
 // ======================================================
 //  THE SCREENS — which part of the game are we on?
@@ -260,7 +279,13 @@ impl Material for LavaLampMaterial {
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins);
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            title: "3D Bunny".to_string(),
+            ..default()
+        }),
+        ..default()
+    }));
 
     // Load our fonts before ANYTHING runs, so every
     // screen can count on them being ready.
@@ -341,18 +366,38 @@ fn build_the_world(
     // A big flat box: 8 wide, very long, and thin like a pancake.
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(8.0, 0.2, 300.0))),
-        MeshMaterial3d(materials.add(Color::srgb(0.3, 0.8, 0.4))),
+        MeshMaterial3d(materials.add(GREEN)),
         Transform::from_xyz(0.0, -0.1, -50.0),
     ));
 
-    // ---------- THE SUN ----------
+    // ---------- THE LIGHTS ----------
+    // Real-world shadows are never pitch black, because
+    // light BOUNCES off everything — the sky, the ground —
+    // and sneaks into the shady spots. 3D artists call
+    // this "ambient light", and copy it with three tricks:
+    //
+    // 1. AMBIENT light: a soft glow from everywhere at
+    //    once, so no corner is ever fully dark. (It rides
+    //    on the camera, below.)
+    // 2. The KEY light: the sun. The only shadow-maker.
     commands.spawn((
         DirectionalLight {
-            illuminance: 8_000.0,
+            illuminance: 6_000.0,
             shadows_enabled: true,
             ..default()
         },
         Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+    // 3. The FILL light: a gentler sun from the OTHER
+    //    side, with no shadows — it plays the part of
+    //    light bouncing back up off the ground.
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 2_500.0,
+            shadows_enabled: false,
+            ..default()
+        },
+        Transform::from_xyz(-6.0, 4.0, -2.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
     // ---------- THE CAMERA (with the background stuck on!) ----------
@@ -360,6 +405,12 @@ fn build_the_world(
         .spawn((
             MainCamera,
             Camera3d::default(),
+            // The soft glow-from-everywhere ambient light.
+            AmbientLight {
+                color: Color::srgb(0.9, 0.9, 1.0), // a whisper of sky blue
+                brightness: 400.0,
+                ..default()
+            },
             Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y),
         ))
         .with_children(|camera| {
@@ -389,9 +440,9 @@ pub fn spawn_bunny_visual(
     materials: &mut Assets<StandardMaterial>,
     place: Transform,
 ) -> Entity {
-    let pink = materials.add(Color::srgb(1.0, 0.4, 0.7));
-    let light_pink = materials.add(Color::srgb(1.0, 0.7, 0.85));
-    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
+    let pink = materials.add(PINK);
+    let light_pink = materials.add(LIGHT_PINK);
+    let white = materials.add(WHITE);
 
     commands
         .spawn((place, Visibility::default()))
@@ -409,7 +460,7 @@ pub fn spawn_bunny_visual(
                 Transform::from_xyz(0.0, 0.55, -0.3),
             ));
             // Two shiny dark eyes on the front of the head!
-            let eye_dark = materials.add(Color::srgb(0.15, 0.1, 0.12));
+            let eye_dark = materials.add(INK);
             bunny.spawn((
                 Mesh3d(meshes.add(Sphere::new(0.07))),
                 MeshMaterial3d(eye_dark.clone()),
@@ -451,12 +502,12 @@ pub fn spawn_thorn_plant(
     materials: &mut Assets<StandardMaterial>,
     place: Transform,
 ) -> Entity {
-    let brown = materials.add(Color::srgb(0.5, 0.3, 0.15));
-    let stem_green = materials.add(Color::srgb(0.2, 0.55, 0.2));
-    let rose_pink = materials.add(Color::srgb(1.0, 0.2, 0.5));
+    let brown = materials.add(BROWN);
+    let stem_green = materials.add(GREEN);
+    let rose_pink = materials.add(PINK);
     let thorn_gray = materials.add(Color::srgb(0.45, 0.45, 0.4));
-    let yellow = materials.add(Color::srgb(1.0, 0.85, 0.2));
-    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
+    let yellow = materials.add(YELLOW);
+    let white = materials.add(WHITE);
 
     commands
         .spawn((place, Visibility::default()))
@@ -527,10 +578,10 @@ pub fn spawn_tomato_visual(
     materials: &mut Assets<StandardMaterial>,
     place: Transform,
 ) -> Entity {
-    let tomato_red = materials.add(Color::srgb(0.75, 0.15, 0.1));
-    let leaf_green = materials.add(Color::srgb(0.25, 0.6, 0.25));
-    let stem_brown = materials.add(Color::srgb(0.4, 0.3, 0.15));
-    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
+    let tomato_red = materials.add(RED);
+    let leaf_green = materials.add(GREEN);
+    let stem_brown = materials.add(BROWN);
+    let white = materials.add(WHITE);
 
     commands
         .spawn((place, Visibility::default()))
@@ -583,9 +634,9 @@ pub fn spawn_bat_visual(
     materials: &mut Assets<StandardMaterial>,
     place: Transform,
 ) -> Entity {
-    let bat_dark = materials.add(Color::srgb(0.15, 0.12, 0.2));
+    let bat_dark = materials.add(INK);
     let eye_red = materials.add(StandardMaterial {
-        base_color: Color::srgb(1.0, 0.1, 0.1),
+        base_color: RED,
         emissive: LinearRgba::new(4.0, 0.2, 0.2, 1.0), // GLOWING eyes!
         ..default()
     });
@@ -649,11 +700,11 @@ pub fn spawn_piece(
     piece: Piece,
     start_z: f32,
 ) {
-    let orange = materials.add(Color::srgb(1.0, 0.5, 0.1));
-    let purple = materials.add(Color::srgb(0.6, 0.2, 0.9));
-    let blue = materials.add(Color::srgb(0.2, 0.5, 1.0));
-    let red = materials.add(Color::srgb(0.9, 0.1, 0.1));
-    let white = materials.add(Color::srgb(1.0, 1.0, 1.0));
+    let orange = materials.add(ORANGE);
+    let purple = materials.add(PURPLE);
+    let blue = materials.add(BLUE);
+    let red = materials.add(RED);
+    let white = materials.add(WHITE);
     let spike_shape = meshes.add(Cone::new(0.6, 1.4));
 
     match piece {
@@ -817,7 +868,7 @@ fn start_playing(
         Text::new("Score: 0"),
         TextFont {
             font: font.0.clone(),
-            font_size: 40.0,
+            font_size: 48.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -834,7 +885,7 @@ fn start_playing(
         Text::new("Level 1"),
         TextFont {
             font: font.0.clone(),
-            font_size: 40.0,
+            font_size: 48.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -913,7 +964,7 @@ fn switch_level(
         spawn_piece(&mut commands, &mut meshes, &mut materials, piece, start_z);
     }
 
-    let gold = materials.add(Color::srgb(1.0, 0.85, 0.2));
+    let gold = materials.add(YELLOW);
 
     // The level book tells us if a boss lives on this
     // stage — and which one!
@@ -1201,7 +1252,7 @@ fn boss_fight(
                             velocity: Vec3::new(0.0, 0.0, 9.0),
                         },
                         Mesh3d(meshes.add(Sphere::new(0.35))),
-                        MeshMaterial3d(materials.add(Color::srgb(0.05, 0.05, 0.05))),
+                        MeshMaterial3d(materials.add(INK)),
                         Transform::from_xyz(0.0, 0.35, position.translation.z),
                     ));
                 }
@@ -1246,7 +1297,7 @@ fn boss_fight(
                         // A long skinny glowing red beam!
                         Mesh3d(meshes.add(Cuboid::new(0.15, 0.15, 2.2))),
                         MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: Color::srgb(1.0, 0.2, 0.2),
+                            base_color: RED,
                             emissive: LinearRgba::new(6.0, 0.4, 0.4, 1.0),
                             ..default()
                         })),
@@ -1443,10 +1494,10 @@ fn start_party(
         Text::new(message),
         TextFont {
             font: font.0.clone(),
-            font_size: 90.0,
+            font_size: 100.0,
             ..default()
         },
-        TextColor(Color::srgb(1.0, 0.9, 0.2)),
+        TextColor(YELLOW),
         TextLayout::new_with_justify(Justify::Center),
         Node {
             position_type: PositionType::Absolute,
@@ -1460,13 +1511,8 @@ fn start_party(
     // We launch 60 glowing balls in a circle. For ball
     // number i, we turn i into an angle, then cos & sin
     // aim around the circle — that's how math draws circles!
-    let firework_colors = [
-        Color::srgb(1.0, 0.3, 0.3), // red
-        Color::srgb(1.0, 0.9, 0.2), // yellow
-        Color::srgb(0.3, 1.0, 0.4), // green
-        Color::srgb(0.3, 0.6, 1.0), // blue
-        Color::srgb(1.0, 0.4, 0.9), // pink
-    ];
+    // Fireworks in every paintbox color!
+    let firework_colors = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK];
     let spark_shape = meshes.add(Sphere::new(0.12));
 
     for i in 0..60 {
