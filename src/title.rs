@@ -207,12 +207,13 @@ fn title_keys(
 //  THE SETTINGS SCREEN
 // ======================================================
 
-fn open_settings(mut commands: Commands, reading: Res<ReadingFont>) {
+fn open_settings(mut commands: Commands, font: Res<GameFont>, reading: Res<ReadingFont>) {
     commands.spawn((
         SettingsStuff,
-        Text::new("settings"),
+        Text::new("SETTINGS"),
         TextFont {
-            font: reading.0.clone(),
+            // The big fancy font for the big heading!
+            font: font.0.clone(),
             font_size: 84.0,
             ..default()
         },
