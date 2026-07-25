@@ -261,11 +261,10 @@ pub struct GameFont(pub Handle<Font>);
 #[derive(Resource)]
 pub struct ReadingFont(pub Handle<Font>);
 
-/// The game's camera spot — close and low, so the wide
-/// lens makes the road feel fast and dramatic. The title
-/// screen and the game both ask here, so they always match.
+/// The game's camera spot. The title screen and the game
+/// both ask here, so they always match.
 pub fn action_camera() -> Transform {
-    Transform::from_xyz(4.2, 3.6, 7.0).looking_at(Vec3::new(0.0, 1.2, -4.0), Vec3::Y)
+    Transform::from_xyz(6.0, 5.0, 9.0).looking_at(Vec3::new(0.0, 1.0, -3.0), Vec3::Y)
 }
 
 // ======================================================
@@ -374,12 +373,34 @@ fn build_the_world(
 ) {
 
     // ---------- THE GROUND ----------
-    // A big flat box: 8 wide, very long, and thin like a pancake.
+    // A big flat box: 8 wide, nice and long, thin like a
+    // pancake. It runs from behind the bunny to far ahead...
     commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(8.0, 0.2, 300.0))),
+        Mesh3d(meshes.add(Cuboid::new(8.0, 0.2, 140.0))),
         MeshMaterial3d(materials.add(GREEN)),
-        Transform::from_xyz(0.0, -0.1, -50.0),
+        Transform::from_xyz(0.0, -0.1, -55.0),
     ));
+    // ...and then FADES AWAY into the swirly background!
+    // The trick: 12 more slices of road, each one a bit
+    // more see-through than the last. Slice 0 is almost
+    // solid, slice 11 is almost invisible — a gradient!
+    let slice_shape = meshes.add(Cuboid::new(8.0, 0.2, 6.0));
+    for i in 0..12 {
+        // FRACTION MATH: i ÷ 12 crawls from 0.0 up toward
+        // 1.0, so "1 - that" fades from solid to nothing.
+        let how_solid = 1.0 - (i as f32 / 12.0);
+        commands.spawn((
+            Mesh3d(slice_shape.clone()),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: GREEN.with_alpha(how_solid),
+                alpha_mode: AlphaMode::Blend, // see-through-able!
+                ..default()
+            })),
+            // Each slice is 6 long, parked right after the
+            // solid road ends at 125.
+            Transform::from_xyz(0.0, -0.1, -125.0 - 3.0 - i as f32 * 6.0),
+        ));
+    }
 
     // ---------- THE LIGHTS ----------
     // Real-world shadows are never pitch black, because
@@ -416,15 +437,6 @@ fn build_the_world(
         .spawn((
             MainCamera,
             Camera3d::default(),
-            // A WIDE-ANGLE lens! A normal camera sees about
-            // 0.78 radians of the world top-to-bottom; ours
-            // sees 1.15 — like a fish-eye action camera.
-            // Near things look big, far things rush away —
-            // much more dramatic!
-            Projection::Perspective(PerspectiveProjection {
-                fov: 1.15,
-                ..default()
-            }),
             // The soft glow-from-everywhere ambient light.
             AmbientLight {
                 color: Color::srgb(0.9, 0.9, 1.0), // a whisper of sky blue
