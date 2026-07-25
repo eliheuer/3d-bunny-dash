@@ -226,6 +226,12 @@ pub struct Settings {
     pub starting_level: usize,
 }
 
+/// Our fancy space font (Planet Kosmos), loaded once
+/// when the game starts and shared by every word on
+/// the screen.
+#[derive(Resource)]
+pub struct GameFont(pub Handle<Font>);
+
 // ======================================================
 //  THE LAVA LAMP BACKGROUND — a custom shader material!
 //  The real magic is in assets/lava_lamp.wgsl, a tiny
@@ -247,9 +253,18 @@ impl Material for LavaLampMaterial {
 // ======================================================
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(MaterialPlugin::<LavaLampMaterial>::default())
+    let mut app = App::new();
+    app.add_plugins(DefaultPlugins);
+
+    // Load our fancy font before ANYTHING runs, so every
+    // screen can count on it being ready.
+    let font = app
+        .world()
+        .resource::<AssetServer>()
+        .load("fonts/PlanetKosmos.ttf");
+    app.insert_resource(GameFont(font));
+
+    app.add_plugins(MaterialPlugin::<LavaLampMaterial>::default())
         .add_plugins(title::TitlePlugin)
         .add_plugins(editor::EditorPlugin)
         .init_state::<Screen>()
@@ -310,6 +325,7 @@ fn build_the_world(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut lava: ResMut<Assets<LavaLampMaterial>>,
 ) {
+
     // ---------- THE GROUND ----------
     // A big flat box: 8 wide, very long, and thin like a pancake.
     commands.spawn((
@@ -380,6 +396,18 @@ pub fn spawn_bunny_visual(
                 Mesh3d(meshes.add(Sphere::new(0.35))),
                 MeshMaterial3d(pink.clone()),
                 Transform::from_xyz(0.0, 0.55, -0.3),
+            ));
+            // Two shiny dark eyes on the front of the head!
+            let eye_dark = materials.add(Color::srgb(0.15, 0.1, 0.12));
+            bunny.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.07))),
+                MeshMaterial3d(eye_dark.clone()),
+                Transform::from_xyz(-0.13, 0.63, -0.6),
+            ));
+            bunny.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.07))),
+                MeshMaterial3d(eye_dark.clone()),
+                Transform::from_xyz(0.13, 0.63, -0.6),
             ));
             // Two tall ears that can FLOP when we jump!
             bunny.spawn((
@@ -617,6 +645,7 @@ fn start_playing(
     mut materials: ResMut<Assets<StandardMaterial>>,
     settings: Res<Settings>,
     the_editor: Res<editor::Editor>,
+    font: Res<GameFont>,
     mut game: ResMut<Game>,
     mut score: ResMut<Score>,
     mut cameras: Query<&mut Transform, With<MainCamera>>,
@@ -656,6 +685,7 @@ fn start_playing(
         ScoreText,
         Text::new("Score: 0"),
         TextFont {
+            font: font.0.clone(),
             font_size: 40.0,
             ..default()
         },
@@ -672,6 +702,7 @@ fn start_playing(
         LevelText,
         Text::new("Level 1"),
         TextFont {
+            font: font.0.clone(),
             font_size: 40.0,
             ..default()
         },
@@ -1010,6 +1041,7 @@ fn boss_fight(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     time: Res<Time>,
+    font: Res<GameFont>,
     mut party: ResMut<Party>,
     mut bosses: Query<(&mut Boss, &mut Transform)>,
 ) {
@@ -1095,6 +1127,7 @@ fn boss_fight(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
+                &font,
                 &mut party,
                 message,
                 next_level,
@@ -1216,6 +1249,7 @@ fn check_for_finish(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    font: Res<GameFont>,
     mut party: ResMut<Party>,
     game: Res<Game>,
     gates: Query<&Transform, With<FinishLine>>,
@@ -1231,6 +1265,7 @@ fn check_for_finish(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
+                &font,
                 &mut party,
                 "LEVEL COMPLETE!",
                 game.level + 1, // the next level!
@@ -1247,6 +1282,7 @@ fn start_party(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    font: &GameFont,
     party: &mut Party,
     message: &str,
     next_level: usize,
@@ -1260,6 +1296,7 @@ fn start_party(
         BigMessage,
         Text::new(message),
         TextFont {
+            font: font.0.clone(),
             font_size: 90.0,
             ..default()
         },

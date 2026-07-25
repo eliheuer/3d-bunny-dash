@@ -17,7 +17,7 @@
 //! they're still there tomorrow!
 
 use crate::{
-    levels, levels::LevelBook, spawn_piece, LevelStuff, MainCamera, Piece, Screen,
+    levels, levels::LevelBook, spawn_piece, GameFont, LevelStuff, MainCamera, Piece, Screen,
 };
 use bevy::prelude::*;
 
@@ -89,6 +89,7 @@ fn open_editor(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    font: Res<GameFont>,
     mut editor: ResMut<Editor>,
 ) {
     editor.playtesting = false;
@@ -115,7 +116,8 @@ fn open_editor(
         StatusWords,
         Text::new(""),
         TextFont {
-            font_size: 34.0,
+            font: font.0.clone(),
+            font_size: 28.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -136,7 +138,8 @@ fn open_editor(
              arrows: move / change level      X delete      P playtest      S save      Esc menu",
         ),
         TextFont {
-            font_size: 24.0,
+            font: font.0.clone(),
+            font_size: 20.0,
             ..default()
         },
         TextColor(Color::srgb(1.0, 0.9, 0.2)),

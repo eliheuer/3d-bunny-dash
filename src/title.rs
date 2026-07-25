@@ -8,8 +8,8 @@
 //! Press 1 to PLAY, 2 for SETTINGS, 3 for the EDITOR.
 
 use crate::{
-    editor::Editor, levels::LevelBook, spawn_bunny_visual, spawn_thorn_plant, MainCamera,
-    Screen, Settings,
+    editor::Editor, levels::LevelBook, spawn_bunny_visual, spawn_thorn_plant, GameFont,
+    MainCamera, Screen, Settings,
 };
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
@@ -47,6 +47,7 @@ fn open_title(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    font: Res<GameFont>,
     mut cameras: Query<&mut Transform, With<MainCamera>>,
 ) {
     // Point the camera straight at the stage.
@@ -55,25 +56,28 @@ fn open_title(
             Transform::from_xyz(0.0, 2.6, 12.0).looking_at(Vec3::new(0.0, 2.0, 0.0), Vec3::Y);
     }
 
-    // ----- The bunny, on the left, facing the villain -----
-    // (Turning -1.57 radians spins it to face right.)
+    // ----- The bunny, on the left -----
+    // Turned PARTWAY toward the villain (a full quarter
+    // turn is 1.57, so 0.9 is a bit more than half a
+    // quarter turn) — that way we can still see its face!
     let bunny = spawn_bunny_visual(
         &mut commands,
         &mut meshes,
         &mut materials,
         Transform::from_xyz(-3.6, 1.0, 2.0)
             .with_scale(Vec3::splat(1.5))
-            .with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+            .with_rotation(Quat::from_rotation_y(-0.9)),
     );
     commands.entity(bunny).insert(TitleStuff);
 
-    // ----- The Cursed Thorn, on the right, facing the bunny -----
+    // ----- The Cursed Thorn, on the right -----
+    // Its eyes and petals are on its front, so we leave it
+    // unturned — facing the camera, glaring right at YOU.
     let plant = spawn_thorn_plant(
         &mut commands,
         &mut meshes,
         &mut materials,
-        Transform::from_xyz(3.8, 0.0, 1.0)
-            .with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+        Transform::from_xyz(3.8, 0.0, 1.0),
     );
     commands.entity(plant).insert(TitleStuff);
 
@@ -124,7 +128,8 @@ fn open_title(
         TitleStuff,
         Text::new("3D BUNNY GEOMETRY DASH"),
         TextFont {
-            font_size: 72.0,
+            font: font.0.clone(),
+            font_size: 64.0,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -140,6 +145,7 @@ fn open_title(
         TitleStuff,
         Text::new("vs. THE CURSED THORN"),
         TextFont {
+            font: font.0.clone(),
             font_size: 44.0,
             ..default()
         },
@@ -156,7 +162,8 @@ fn open_title(
         TitleStuff,
         Text::new("[1] PLAY        [2] SETTINGS        [3] LEVEL EDITOR"),
         TextFont {
-            font_size: 34.0,
+            font: font.0.clone(),
+            font_size: 30.0,
             ..default()
         },
         TextColor(Color::srgb(1.0, 0.9, 0.2)),
@@ -205,11 +212,12 @@ fn title_keys(
 //  THE SETTINGS SCREEN
 // ======================================================
 
-fn open_settings(mut commands: Commands) {
+fn open_settings(mut commands: Commands, font: Res<GameFont>) {
     commands.spawn((
         SettingsStuff,
         Text::new("SETTINGS"),
         TextFont {
+            font: font.0.clone(),
             font_size: 72.0,
             ..default()
         },
@@ -227,7 +235,8 @@ fn open_settings(mut commands: Commands) {
         SettingsWords,
         Text::new(""),
         TextFont {
-            font_size: 40.0,
+            font: font.0.clone(),
+            font_size: 36.0,
             ..default()
         },
         TextColor(Color::srgb(1.0, 0.9, 0.2)),
