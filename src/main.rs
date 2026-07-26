@@ -305,6 +305,24 @@ struct Awards {
     star: bool,
 }
 
+/// Which song fits where we are right now?
+#[derive(PartialEq, Clone, Copy)]
+enum Song {
+    Level, // the happy anthem (levels, title, editor)
+    Boss,  // the stormy boss battle track
+    Evil,  // the Evil Bunny's sneaky rainbow rave
+}
+
+/// The song currently playing (None = nothing yet).
+#[derive(Resource)]
+struct NowPlaying {
+    song: Option<Song>,
+}
+
+/// The sticker for the entity playing the music.
+#[derive(Component)]
+struct MusicPlayer;
+
 /// Is the fireworks party happening?
 #[derive(Resource)]
 struct Party {
@@ -473,6 +491,7 @@ fn main() {
             trophies: 0,
             star: false,
         })
+        .insert_resource(NowPlaying { song: None })
         .insert_resource(Party {
             happening: false,
             timer: 0.0,
@@ -486,6 +505,7 @@ fn main() {
         .add_systems(
             Update,
             (
+                music_director,
                 flap_wings,
                 blink_tomato_eyes,
                 sway_plants,
@@ -1617,6 +1637,58 @@ fn flap_wings(time: Res<Time>, mut wings: Query<(&mut Transform, &Wing)>) {
         // mirrored by its side so they beat like real wings.
         wing_pose.rotation = Quat::from_rotation_z(wing.side * -(0.25 + flap));
     }
+}
+
+// ======================================================
+//  THE MUSIC DIRECTOR — always knows which song fits:
+//  the happy anthem on levels (and the title screen and
+//  editor), the stormy track for boss fights, and the
+//  sneaky rave for the Evil Bunny. When the right song
+//  changes, it swaps the record.
+// ======================================================
+
+fn music_director(
+    mut commands: Commands,
+    sounds: Res<AssetServer>,
+    screen: Res<State<Screen>>,
+    game: Res<Game>,
+    book: Res<LevelBook>,
+    mut now: ResMut<NowPlaying>,
+    players: Query<Entity, With<MusicPlayer>>,
+) {
+    // Which song SHOULD be playing right now?
+    let wanted = if *screen.get() == Screen::Playing {
+        match book.get(game.level).boss.as_str() {
+            "" => Song::Level,
+            "evilbunny" => Song::Evil,
+            _ => Song::Boss,
+        }
+    } else {
+        Song::Level // title, settings, and editor all groove
+    };
+
+    // Already playing it? Leave the record spinning.
+    if now.song == Some(wanted) {
+        return;
+    }
+    now.song = Some(wanted);
+
+    // Take the old record off...
+    for player in &players {
+        commands.entity(player).despawn();
+    }
+    // ...and put the new one on, looping forever, a bit
+    // quieter than the sound effects so they still pop.
+    let file = match wanted {
+        Song::Level => "music_level.wav",
+        Song::Boss => "music_boss.wav",
+        Song::Evil => "music_evil.wav",
+    };
+    commands.spawn((
+        MusicPlayer,
+        AudioPlayer::new(sounds.load(file)),
+        PlaybackSettings::LOOP.with_volume(bevy::audio::Volume::Linear(0.4)),
+    ));
 }
 
 // ======================================================
