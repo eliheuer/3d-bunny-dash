@@ -305,17 +305,41 @@ fn settings_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
     book: Res<LevelBook>,
     mut settings: ResMut<Settings>,
+    mut row: Local<usize>,
     mut next_screen: ResMut<NextState<Screen>>,
     mut words: Query<&mut Text, With<SettingsWords>>,
 ) {
-    // Left and Right arrows pick the starting level.
-    if keyboard.just_pressed(KeyCode::ArrowLeft) && settings.starting_level > 1 {
-        settings.starting_level -= 1;
+    use crate::MusicMode;
+
+    // Up and Down pick which setting you're changing
+    // ("% 2" wraps around between the two rows).
+    if keyboard.just_pressed(KeyCode::ArrowUp) || keyboard.just_pressed(KeyCode::ArrowDown) {
+        *row = (*row + 1) % 2;
     }
-    if keyboard.just_pressed(KeyCode::ArrowRight)
-        && settings.starting_level < book.levels.len()
-    {
-        settings.starting_level += 1;
+
+    // Left and Right change the chosen setting.
+    let left = keyboard.just_pressed(KeyCode::ArrowLeft);
+    let right = keyboard.just_pressed(KeyCode::ArrowRight);
+    if *row == 0 {
+        if left && settings.starting_level > 1 {
+            settings.starting_level -= 1;
+        }
+        if right && settings.starting_level < book.levels.len() {
+            settings.starting_level += 1;
+        }
+    } else if left || right {
+        // Either arrow cycles through the three music modes.
+        settings.music = match settings.music {
+            MusicMode::Chill => {
+                if right { MusicMode::Hardcore } else { MusicMode::Off }
+            }
+            MusicMode::Hardcore => {
+                if right { MusicMode::Off } else { MusicMode::Chill }
+            }
+            MusicMode::Off => {
+                if right { MusicMode::Chill } else { MusicMode::Hardcore }
+            }
+        };
     }
 
     // Escape or Enter → back to the title screen.
@@ -323,16 +347,30 @@ fn settings_keys(
         next_screen.set(Screen::Title);
     }
 
-    // Keep the words up to date. The level book hands us
-    // the stage's one true name tag, so the counting here
-    // matches the rest of the game! The < and > match the
-    // left and right arrow keys that change it.
-    // (Our reading font has no arrow characters — a font
-    // only knows the letters its designer drew!)
+    // Keep the words up to date. The chevrons show which
+    // row the arrows are pointed at right now.
+    let music_name = match settings.music {
+        MusicMode::Chill => "chill",
+        MusicMode::Hardcore => "hardcore",
+        MusicMode::Off => "off",
+    };
+    let (start_pick, music_pick) = if *row == 0 {
+        (("<  ", "  >"), ("   ", "   "))
+    } else {
+        (("   ", "   "), ("<  ", "  >"))
+    };
     for mut text in &mut words {
         *text = Text::new(format!(
-            "Start at\n\n<     {}     >\n\n\nesc  back to the title screen",
+            "Start at   {}{}{}\n\n\
+             Music   {}{}{}\n\n\n\
+             up/down  choose      left/right  change\n\
+             esc  back to the title screen",
+            start_pick.0,
             book.label(settings.starting_level),
+            start_pick.1,
+            music_pick.0,
+            music_name,
+            music_pick.1,
         ));
     }
 }

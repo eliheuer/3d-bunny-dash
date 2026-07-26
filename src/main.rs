@@ -313,10 +313,11 @@ enum Song {
     Evil,  // the Evil Bunny's sneaky rainbow rave
 }
 
-/// The song currently playing (None = nothing yet).
+/// What's on the record player right now: which song,
+/// in which mode. None = silence.
 #[derive(Resource)]
 struct NowPlaying {
-    song: Option<Song>,
+    song: Option<(Song, MusicMode)>,
 }
 
 /// The sticker for the entity playing the music.
@@ -332,10 +333,19 @@ struct Party {
     next_level: usize,
 }
 
+/// The music flavors you can pick in settings.
+#[derive(PartialEq, Clone, Copy)]
+pub enum MusicMode {
+    Chill,    // slow minimalist future funk house (default)
+    Hardcore, // fast happy hardcore
+    Off,      // sweet silence
+}
+
 /// Choices you can change on the SETTINGS screen.
 #[derive(Resource)]
 pub struct Settings {
     pub starting_level: usize,
+    pub music: MusicMode,
 }
 
 /// Our fancy space font (Planet Kosmos) for big titles
@@ -477,6 +487,7 @@ fn main() {
         .insert_resource(Score { points: 0.0 })
         .insert_resource(Settings {
             starting_level: STARTING_LEVEL,
+            music: MusicMode::Chill, // chill vibes by default
         })
         .insert_resource(Game {
             level: 1,
@@ -1653,11 +1664,12 @@ fn music_director(
     screen: Res<State<Screen>>,
     game: Res<Game>,
     book: Res<LevelBook>,
+    settings: Res<Settings>,
     mut now: ResMut<NowPlaying>,
     players: Query<Entity, With<MusicPlayer>>,
 ) {
     // Which song SHOULD be playing right now?
-    let wanted = if *screen.get() == Screen::Playing {
+    let song = if *screen.get() == Screen::Playing {
         match book.get(game.level).boss.as_str() {
             "" => Song::Level,
             "evilbunny" => Song::Evil,
@@ -1667,11 +1679,18 @@ fn music_director(
         Song::Level // title, settings, and editor all groove
     };
 
+    // Music turned off in settings? Wanted = silence.
+    let wanted = if settings.music == MusicMode::Off {
+        None
+    } else {
+        Some((song, settings.music))
+    };
+
     // Already playing it? Leave the record spinning.
-    if now.song == Some(wanted) {
+    if now.song == wanted {
         return;
     }
-    now.song = Some(wanted);
+    now.song = wanted;
 
     // Take the old record off...
     for player in &players {
@@ -1679,10 +1698,16 @@ fn music_director(
     }
     // ...and put the new one on, looping forever, a bit
     // quieter than the sound effects so they still pop.
-    let file = match wanted {
-        Song::Level => "music_level.wav",
-        Song::Boss => "music_boss.wav",
-        Song::Evil => "music_evil.wav",
+    let Some((song, mode)) = wanted else {
+        return; // silence it is!
+    };
+    let file = match (song, mode) {
+        (Song::Level, MusicMode::Hardcore) => "music_level.wav",
+        (Song::Boss, MusicMode::Hardcore) => "music_boss.wav",
+        (Song::Evil, MusicMode::Hardcore) => "music_evil.wav",
+        (Song::Level, _) => "music_level_chill.wav",
+        (Song::Boss, _) => "music_boss_chill.wav",
+        (Song::Evil, _) => "music_evil_chill.wav",
     };
     commands.spawn((
         MusicPlayer,
